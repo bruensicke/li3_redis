@@ -35,7 +35,9 @@ and activate it in you app (config/bootstrap/libraries.php), of course:
 
 i want to address the following topics. If you need something or can share something of value, please get in touch with me.
 
-- convert leaderboard class to use lithium standards `_init()`
+- convert leaderboard class to use lithium standards `_init()` etc.
+- use Redis class as utility class for Leaderboard
+- auto-add/remove namespace formats to include environments or other variables in keys
 - add points / score class
 - add user messaging system
 - add basic queue system (that may also go into [li3_queue](https://github.com/bruensicke/li3_queue))
@@ -45,4 +47,4 @@ i want to address the following topics. If you need something or can share somet
 * [li3](http://www.lithify.me)
 * [PHP Leaderboard](https://github.com/agoragames/php-leaderboard).
 
-Please report any bug, here: https://github.com/bruensicke/li3_mustache/issues
+Please report any bug or feature-request here: https://github.com/bruensicke/li3_redis/issues
