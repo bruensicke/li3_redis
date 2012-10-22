@@ -3,29 +3,33 @@
 namespace li3_redis\tests\cases\storage;
 
 use li3_redis\storage\Leaderboard;
+use li3_redis\storage\Redis;
 
 use Redis as RedisCore;
 
 class LeaderboardTest extends \lithium\test\Unit {
+
 	public $redis;
 
 	public function setUp() {
 		$this->redis = new RedisCore();
 		$this->redis->connect('127.0.0.1', 6379);
+		$this->redis->select(1);
 		$this->redis->flushDB();
+		$this->prefix = Redis::formatKey(Leaderboard::$namespace).':';
+		Redis::connection()->select(1);
 	}
 
 	public function tearDown() {
-		$this->redis->close();
-	}
-
-	function testVersion() {
-		$this->assertEqual('1.0.0', Leaderboard::VERSION);
+		$this->redis->select(1);
+		$this->redis->flushDB();
 	}
 
 	function testConstructLeaderboardClassWithName() {
 		$leaderboard = new Leaderboard('leaderboard');
-		$this->assertEqual('leaderboard', $leaderboard->getLeaderboardName());
+		$this->assertEqual('leaderboard', $leaderboard->getName());
+		$expected = Redis::formatKey(Leaderboard::$namespace.':leaderboard');
+		$this->assertEqual($expected, $leaderboard->getKey());
 	}
 
 	function testCloseLeaderboardConnection() {
@@ -35,15 +39,16 @@ class LeaderboardTest extends \lithium\test\Unit {
 
 	function testAddMember() {
 		$leaderboard = new Leaderboard('leaderboard');
+		$leaderboard->removeMember('david');
 		$this->assertEqual(1, $leaderboard->addMember('david', 69));
-		$this->assertEqual(1, $this->redis->zSize('leaderboard'));
+		$this->assertEqual(1, $this->redis->zSize($this->prefix.'leaderboard'));
 	}
 
 	function testRemoveMember() {
 		$leaderboard = new Leaderboard('leaderboard');
 		$this->assertEqual(1, $leaderboard->addMember('david', 69));
 		$this->assertEqual(1, $leaderboard->removeMember('david'));
-		$this->assertEqual(0, $this->redis->zSize('leaderboard'));
+		$this->assertEqual(0, $this->redis->zSize($this->prefix.'leaderboard'));
 	}
 
 	function testTotalMembers() {
