@@ -35,9 +35,12 @@ and activate it in you app (config/bootstrap/libraries.php), of course:
 
 i want to address the following topics. If you need something or can share something of value, please get in touch with me.
 
-- convert leaderboard class to use lithium standards `_init()` etc.
-- use Redis class as utility class for Leaderboard
-- auto-add/remove namespace formats to include environments or other variables in keys
+- create redis datasource (done)
+- use Connection class to define connections (done)
+- fix failing unit-tests
+- convert leaderboard class to use lithium standards `_init()` etc. (partly done)
+- use Redis class as utility class for Leaderboard (done)
+- auto-add/remove namespace formats to include environments or other variables in keys (done)
 - add points / score class
 - add user messaging system
 - add basic queue system (that may also go into [li3_queue](https://github.com/bruensicke/li3_queue))
