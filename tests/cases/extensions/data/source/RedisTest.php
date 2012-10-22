@@ -26,7 +26,7 @@ class RedisTest extends \lithium\test\Unit {
 	/**
 	 * Connection to the database.
 	 */
-	public $db = null;
+	public $connection = null;
 
 	/**
 	 * Skip the test if a Redis adapter configuration is unavailable.
@@ -39,8 +39,8 @@ class RedisTest extends \lithium\test\Unit {
 		$message = 'Test database is either unavailable, or not a Redis connection!';
 		$this->skipIf(!$hasDb, $message);
 
-		$this->db = new Redis($this->_connectionConfig);
-		$this->db->select(1);
+		$this->connection = new Redis($this->_connectionConfig);
+		$this->connection->select(1);
 	}
 
 	public function testEnabled() {
