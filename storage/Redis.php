@@ -1,98 +1,109 @@
 <?php
-/**
- * Lithium: the most rad php framework
- *
- * @copyright     Copyright 2012, Union of RAD (http://union-of-rad.org)
- * @license       http://opensource.org/licenses/bsd-license.php The BSD License
- */
 
 namespace li3_redis\storage;
 
-use Redis as RedisCore;
+use lithium\core\Libraries;
+use lithium\core\Environment;
+use lithium\data\Connections;
+use lithium\util\String;
+use lithium\util\Set;
 
-/**
- * An advanced Redis (phpredis) implementation, that is based on lithiums Cache adapter.
- *
- * This class uses the `phpredis` PHP extension, which can be found here:
- * https://github.com/nicolasff/phpredis
- *
- * This Class does not try to be a full datasource but a storage class for data, that is heavily
- * changed during apps lifetime and also provides access to more advanced methods of redis.
- *
- * A simple configuration to access your redis instance can be accomplished in
- *  `config/bootstrap/connections.php` as follows:
- *
- * {{{
-  * Connections::add('redis', array(
- *     'development' => array(
- *         'host' => '127.0.0.1:6379',
- *			'expiry' => '+1 hour',
- *			'persistent' => false
- *     )
- * ));
- * }}}
- *
- * The 'host' key accepts a string argument in the format of ip:port where the Redis
- * server can be found.
- *
- * The 'expiry'  A `strtotime()`-compatible string indicating a default expiration data, or a Unix
- * timestamp.
- *
- * @link https://github.com/nicolasff/phpredis GitHub: PhpRedis Extension
- *
- */
-class Redis extends \lithium\core\Object {
+class Redis extends \lithium\core\StaticObject {
 
 	/**
-	 * Redis object instance used by this class.
+	 * Stores configuration information for object instances at time of construction.
+	 * **Do not override.** Pass any additional variables to `Redis::init()`.
+	 *
+	 * @var array
+	 */
+	protected static $_config = array();
+
+	/**
+	 * Redis Connection instance used by this class.
 	 *
 	 * @var object Redis object
 	 */
-	public $connection;
+	public static $connection;
 
 	/**
-	 * Object constructor
+	 * Sets default connection options.
 	 *
-	 * Instantiates the `Redis` object and connects it to the configured server.
-	 *
-	 * @todo Implement configurable & optional authentication
-	 * @see lithium\storage\Cache::config()
-	 * @see lithium\storage\cache\class\Redis::_ttl()
-	 * @param array $config Configuration parameters for this cache class.
-	 *        These settings are indexed by name and queryable through `Cache::config('name')`. The
-	 *        available settings for this class are as follows:
-	 *        - `'host'` _string_: A string in the form of `'host:port'` indicating the Redis server
-	 *          to connect to. Defaults to `'127.0.0.1:6379'`.
-	 *        - `'expiry'` _mixed_: Default expiration for cache values written through this
-	 *          class. Defaults to `'+1 hour'`. For acceptable values, see the `$expiry` parameter
-	 *          of `Redis::_ttl()`.
-	 *        - `'persistent'` _boolean_: Indicates whether the class should use a persistent
-	 *          connection when attempting to connect to the Redis server. If `true`, it will
-	 *          attempt to reuse an existing connection when connecting, and the connection will
-	 *          not close when the request is terminated. Defaults to `false`.
+	 * @see li3_redis\storage\Redis::config()
+	 * @param array $options
+	 * @return void
 	 */
-	public function __construct(array $config = array()) {
-		$defaults = array(
-			'host' => '127.0.0.1:6379',
-			'expiry' => '+1 hour',
-			'persistent' => false
-		);
-		parent::__construct($config + $defaults);
+	public static function __init() {
+		static::config();
 	}
 
 	/**
-	 * Initialize the Redis connection object and connect to the Redis server.
+	 * Configures the redis backend for use.
+	 *
+	 * This method is called by `Redis::init()` and `Redis::__init()`.
+	 *
+	 * @param array $options Possible options are:
+	 *     - `format`: allows setting a prefix for keys, i.e. Environment
 	 *
 	 * @return void
 	 */
-	protected function _init() {
-		if (!$this->connection) {
-			$this->connection = new RedisCore();
+	public static function config(array $options = array()) {
+		$config = Libraries::get('li3_redis');
+		$defaults = array('connection' => 'li3_redis', 'format' => '{:environment}:{:name}');
+		if (!empty($config['format'])) {
+			$defaults['format'] = $config['format'];
 		}
-		list($ip, $port) = explode(':', $this->_config['host']);
-		$method = $this->_config['persistent'] ? 'pconnect' : 'connect';
-		$this->connection->{$method}($ip, $port);
+		if (!empty($config['connection'])) {
+			$defaults['connection'] = $config['connection'];
+		}
+		$options += $defaults;
+		static::connection(Connections::get($options['connection']));
+		return static::$_config = $options;
 	}
+
+	/**
+	 * returns a replaced version of a generic message format
+	 *
+	 * used to interpolate names/folders for keys
+	 *
+	 * @param string $name optional, if given, inserts the key
+	 * @return string the parsed string
+	 */
+	public static function formatKey($name = null, $namespace = null) {
+		$name = ($namespace) ? sprintf('%s:%s', $namespace, $name) : $name;
+		return String::insert(static::$_config['format'], array(
+			'name' => ($name) ? : '{:name}',
+			'environment' => Environment::get(),
+		));
+	}
+
+	public static function find($search = '*') {
+		$params = compact('search');
+		return static::_filter(__METHOD__, $params, function($self, $params) {
+			return call_user_func_array(array($self::connection(), 'keys'), array_values($params));
+		});
+	}
+
+	public static function connection($connection = null) {
+		if (!is_null($connection)) {
+			static::$connection = $connection;
+		}
+		return static::$connection;
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 	/**
 	 * Sets expiration time for cache keys
