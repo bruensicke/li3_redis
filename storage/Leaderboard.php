@@ -4,6 +4,21 @@ namespace li3_redis\storage;
 
 use li3_redis\storage\Redis;
 
+/**
+ * Leaderboards are a redis based sorted set that allow easy storage and retrieval of players scores
+ *
+ * It implements the logic derived from agora games leaderboards. For further information about
+ * usage and the internals have a look at:
+ *
+ * https://github.com/agoragames/leaderboard
+ * http://blog.agoragames.com/blog/2011/01/01/creating-high-score-tables-leaderboards-using-redis/
+ * http://redis.io/commands#sorted_set
+ *
+ * The basic implementation is as described in the documentation but there are additional methods
+ * available for your gaming leadboards pleasure.
+ *
+ * @see https://github.com/agoragames/leaderboard
+ */
 class Leaderboard {
 
 	const DEFAULT_PAGE_SIZE = 100;
