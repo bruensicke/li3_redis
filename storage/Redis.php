@@ -16,7 +16,7 @@ class Redis extends \lithium\core\StaticObject {
 	 *
 	 * @var array
 	 */
-	protected static $_config = array();
+	public static $_config = array();
 
 	/**
 	 * Redis Connection instance used by this class.
@@ -39,7 +39,7 @@ class Redis extends \lithium\core\StaticObject {
 	/**
 	 * Configures the redis backend for use.
 	 *
-	 * This method is called by `Redis::init()` and `Redis::__init()`.
+	 * This method is called by `Redis::__init()`.
 	 *
 	 * @param array $options Possible options are:
 	 *     - `format`: allows setting a prefix for keys, i.e. Environment
@@ -48,7 +48,11 @@ class Redis extends \lithium\core\StaticObject {
 	 */
 	public static function config(array $options = array()) {
 		$config = Libraries::get('li3_redis');
-		$defaults = array('connection' => 'li3_redis', 'format' => '{:environment}:{:name}');
+		$defaults = array(
+			'expiry' => false,
+			'connection' => 'li3_redis',
+			'format' => '{:environment}:{:name}',
+		);
 		if (!empty($config['format'])) {
 			$defaults['format'] = $config['format'];
 		}
@@ -58,6 +62,13 @@ class Redis extends \lithium\core\StaticObject {
 		$options += $defaults;
 		static::connection(Connections::get($options['connection']));
 		return static::$_config = $options;
+	}
+
+	public static function connection($connection = null) {
+		if (!is_null($connection)) {
+			static::$connection = $connection;
+		}
+		return static::$connection;
 	}
 
 	/**
@@ -76,19 +87,46 @@ class Redis extends \lithium\core\StaticObject {
 		));
 	}
 
+
 	public static function find($search = '*') {
 		$params = compact('search');
 		return static::_filter(__METHOD__, $params, function($self, $params) {
-			return call_user_func_array(array($self::connection(), 'keys'), array_values($params));
+			$result = call_user_func_array(array($self::connection(), 'keys'), array_values($params));
+			// TODO: replacing of namespace
+			// foreach ($result as $key => $value) {
+			// 	$newKey = str_replace(sprintf('%s:', $env), '', $key);
+			// 	$result[$newKey] = $value;
+			// 	unset($result[$key]);
+			// }
+			return $result;
 		});
 	}
 
-	public static function connection($connection = null) {
-		if (!is_null($connection)) {
-			static::$connection = $connection;
-		}
-		return static::$connection;
+	/**
+	 * fetches existing keys and their corresponding values
+	 *
+	 * @see RedisPlus::keys()
+	 * @param string $search key search string
+	 * @return array an array containing all keys, that match the search string and their values
+	 * @filter
+	 */
+	public static function fetch($search = '*') {
+		$params = compact('search');
+		return static::_filter(__METHOD__, $params, function($self, $params) {
+			$keys = call_user_func_array(array($self::connection(), 'keys'), array_values($params));
+			if (!is_array($keys)) {
+				return array();
+			}
+			$values = call_user_func_array(array($self::connection(), 'getMultiple'), array($keys));
+			if (!is_array($values)) {
+				return array();
+			}
+			$result = array_combine($keys, $values);
+			ksort($result);
+			return $result;
+		});
 	}
+
 
 
 
@@ -113,8 +151,8 @@ class Redis extends \lithium\core\StaticObject {
 	 *              should expire, or a Unix timestamp.
 	 * @return boolean Returns `true` if expiry could be set for the given key, `false` otherwise.
 	 */
-	protected function _ttl($key, $expiry) {
-		return $this->connection->expireAt($key, is_int($expiry) ? $expiry : strtotime($expiry));
+	protected static function _ttl($key, $expiry) {
+		return static::connection()->expireAt($key, is_int($expiry) ? $expiry : strtotime($expiry));
 	}
 
 	/**
@@ -126,33 +164,32 @@ class Redis extends \lithium\core\StaticObject {
 	 *        then the default cache expiration time set with the cache configuration will be used.
 	 * @return closure Function returning boolean `true` on successful write, `false` otherwise.
 	 */
-	public function write($key, $value = null, $expiry = null) {
-		$connection =& $this->connection;
-		$expiry = ($expiry) ?: $this->_config['expiry'];
-		$_self =& $this;
-
-		return function($self, $params) use (&$_self, &$connection, $expiry) {
+	public static function write($key, $value = null, $expiry = null) {
+		$connection = static::connection();
+		$expiry = ($expiry) ?: static::$_config['expiry'];
+		$params = compact('key', 'value', 'expiry');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			$expiry = $params['expiry'];
 			if (is_array($params['key'])) {
-				$expiry = $params['data'];
 
 				if ($connection->mset($params['key'])) {
 					$ttl = array();
 
 					if ($expiry) {
 						foreach ($params['key'] as $k => $v) {
-							$ttl[$k] = $_self->invokeMethod('_ttl', array($k, $expiry));
+							$ttl[$k] = $self::invokeMethod('_ttl', array($k, $expiry));
 						}
 					}
 					return $ttl;
 				}
 			}
-			if ($result = $connection->set($params['key'], $params['data'])) {
+			if ($result = $connection->set($params['key'], $params['value'])) {
 				if ($expiry) {
-					return $_self->invokeMethod('_ttl', array($params['key'], $expiry));
+					return $self::invokeMethod('_ttl', array($params['key'], $expiry));
 				}
 				return $result;
 			}
-		};
+		});
 	}
 
 	/**
@@ -161,17 +198,16 @@ class Redis extends \lithium\core\StaticObject {
 	 * @param string $key The key to uniquely identify the cached item
 	 * @return closure Function returning cached value if successful, `false` otherwise
 	 */
-	public function read($key) {
-		$connection =& $this->connection;
-
-		return function($self, $params) use (&$connection) {
+	public static function read($key) {
+		$connection = static::connection();
+		$params = compact('key');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
 			$key = $params['key'];
-
-			if (is_array($key)) {
+			if (is_array($params['key'])) {
 				return $connection->getMultiple($key);
 			}
 			return $connection->get($key);
-		};
+		});
 	}
 
 	/**
@@ -180,8 +216,8 @@ class Redis extends \lithium\core\StaticObject {
 	 * @param string $key The key to uniquely identify the cached item
 	 * @return closure Function returning boolean `true` on successful delete, `false` otherwise
 	 */
-	public function delete($key) {
-		$connection =& $this->connection;
+	public static function delete($key) {
+		$connection =& static::connection();
 
 		return function($self, $params) use (&$connection) {
 			return (boolean) $connection->delete($params['key']);
@@ -199,8 +235,8 @@ class Redis extends \lithium\core\StaticObject {
 	 * @param integer $offset Offset to decrement - defaults to 1.
 	 * @return closure Function returning item's new value on successful decrement, else `false`
 	 */
-	public function decrement($key, $offset = 1) {
-		$connection =& $this->connection;
+	public static function decrement($key, $offset = 1) {
+		$connection =& static::connection();
 
 		return function($self, $params) use (&$connection, $offset) {
 			return $connection->decr($params['key'], $offset);
@@ -218,8 +254,8 @@ class Redis extends \lithium\core\StaticObject {
 	 * @param integer $offset Offset to increment - defaults to 1.
 	 * @return closure Function returning item's new value on successful increment, else `false`
 	 */
-	public function increment($key, $offset = 1) {
-		$connection =& $this->connection;
+	public static function increment($key, $offset = 1) {
+		$connection =& static::connection();
 
 		return function($self, $params) use (&$connection, $offset) {
 			return $connection->incr($params['key'], $offset);
@@ -231,8 +267,8 @@ class Redis extends \lithium\core\StaticObject {
 	 *
 	 * @return mixed True on successful clear, false otherwise
 	 */
-	public function clear() {
-		return $this->connection->flushdb();
+	public static function clear() {
+		return static::connection()->flushdb();
 	}
 
 	/**
