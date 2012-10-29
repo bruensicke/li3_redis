@@ -51,7 +51,7 @@ class Redis extends \lithium\core\StaticObject {
 		$defaults = array(
 			'expiry' => false,
 			'connection' => 'li3_redis',
-			'format' => '{:environment}:{:name}',
+			'format' => '{:environment}:',
 		);
 		if (!empty($config['format'])) {
 			$defaults['format'] = $config['format'];
@@ -71,6 +71,14 @@ class Redis extends \lithium\core\StaticObject {
 		return static::$connection;
 	}
 
+	public static function resolveFormat($name = null, $format = null) {
+		$format = ($format) ? : static::$_config['format'];
+		return String::insert($format, array(
+			'name' => ($name) ? : '',
+			'environment' => Environment::get(),
+		));
+	}
+
 	/**
 	 * returns a replaced version of a generic message format
 	 *
@@ -79,26 +87,51 @@ class Redis extends \lithium\core\StaticObject {
 	 * @param string $name optional, if given, inserts the key
 	 * @return string the parsed string
 	 */
-	public static function formatKey($name = null, $namespace = null) {
+	public static function addKey($name = null, $namespace = null) {
 		$name = ($namespace) ? sprintf('%s:%s', $namespace, $name) : $name;
-		return String::insert(static::$_config['format'], array(
-			'name' => ($name) ? : '{:name}',
-			'environment' => Environment::get(),
-		));
+		if (is_array($name)) {
+			foreach($name as $key) {
+				//TODO:
+			}
+		}
+		return static::resolveFormat($name);
 	}
 
+	public static function removeKey($data, $namespace = null) {
+		$name = static::resolveFormat($namespace);
+		if (is_array($data)) {
+			foreach ($data as $key => $value) {
+				$newKey = trim(str_replace($name, '', $key), ':');
+				$data[$newKey] = $value;
+				unset($data[$key]);
+			}
+		}
+		return $data;
+	}
 
-	public static function find($search = '*') {
-		$params = compact('search');
+	/**
+	 * searches for keys to look for
+	 *
+	 * @see RedisPlus::keys()
+	 * @param string $search key search string
+	 * @param string $namespace namespace in which to look for
+	 * @return array an array containing all keys, that match the search string and their values
+	 * @filter
+	 */
+	public static function find($search = '*', $namespace = null) {
+		$params = compact('search', 'namespace', 'options');
 		return static::_filter(__METHOD__, $params, function($self, $params) {
-			$result = call_user_func_array(array($self::connection(), 'keys'), array_values($params));
-			// TODO: replacing of namespace
-			// foreach ($result as $key => $value) {
-			// 	$newKey = str_replace(sprintf('%s:', $env), '', $key);
-			// 	$result[$newKey] = $value;
-			// 	unset($result[$key]);
-			// }
-			return $result;
+			$search = $self::addKey($params['search'], $params['namespace']);
+			$result = call_user_func_array(array($self::connection(), 'keys'), array($search));
+			if (!$options['strip']) {
+				return $result;
+			}
+			$name = $self::resolveFormat($params['namespace']);
+			$return = array();
+			foreach ($result as $value) {
+				$return[] = trim(str_replace($name, '', $value), ':');
+			}
+			return $return;
 		});
 	}
 
@@ -107,13 +140,15 @@ class Redis extends \lithium\core\StaticObject {
 	 *
 	 * @see RedisPlus::keys()
 	 * @param string $search key search string
+	 * @param string $namespace namespace in which to look for
 	 * @return array an array containing all keys, that match the search string and their values
 	 * @filter
 	 */
-	public static function fetch($search = '*') {
-		$params = compact('search');
+	public static function fetch($search = '*', $namespace = null) {
+		$params = compact('search', 'namespace');
 		return static::_filter(__METHOD__, $params, function($self, $params) {
-			$keys = call_user_func_array(array($self::connection(), 'keys'), array_values($params));
+			$search = $self::addKey($params['search'], $params['namespace']);
+			$keys = call_user_func_array(array($self::connection(), 'keys'), array($search));
 			if (!is_array($keys)) {
 				return array();
 			}
@@ -123,7 +158,7 @@ class Redis extends \lithium\core\StaticObject {
 			}
 			$result = array_combine($keys, $values);
 			ksort($result);
-			return $result;
+			return $self::removeKey($result, $params['namespace']);
 		});
 	}
 
@@ -169,23 +204,23 @@ class Redis extends \lithium\core\StaticObject {
 		$expiry = ($expiry) ?: static::$_config['expiry'];
 		$params = compact('key', 'value', 'expiry');
 		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			$key = $self::addKey($params['key']);
 			$expiry = $params['expiry'];
-			if (is_array($params['key'])) {
-
-				if ($connection->mset($params['key'])) {
+			if (is_array($key)) {
+				if ($connection->mset($key)) {
 					$ttl = array();
 
 					if ($expiry) {
-						foreach ($params['key'] as $k => $v) {
+						foreach ($key as $k => $v) {
 							$ttl[$k] = $self::invokeMethod('_ttl', array($k, $expiry));
 						}
 					}
 					return $ttl;
 				}
 			}
-			if ($result = $connection->set($params['key'], $params['value'])) {
+			if ($result = $connection->set($key, $params['value'])) {
 				if ($expiry) {
-					return $self::invokeMethod('_ttl', array($params['key'], $expiry));
+					return $self::invokeMethod('_ttl', array($key, $expiry));
 				}
 				return $result;
 			}
@@ -198,11 +233,11 @@ class Redis extends \lithium\core\StaticObject {
 	 * @param string $key The key to uniquely identify the cached item
 	 * @return closure Function returning cached value if successful, `false` otherwise
 	 */
-	public static function read($key) {
+	public static function read($key, $namespace = null) {
 		$connection = static::connection();
-		$params = compact('key');
+		$params = compact('key', 'namespace');
 		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
-			$key = $params['key'];
+			$key = $self::addKey($params['key'], $params['namespace']);
 			if (is_array($params['key'])) {
 				return $connection->getMultiple($key);
 			}

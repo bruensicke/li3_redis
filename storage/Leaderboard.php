@@ -42,7 +42,7 @@ class Leaderboard {
 
 	public function getKey($name = null) {
 		$name = $name ? : $this->name;
-		return Redis::formatKey($name, Leaderboard::$namespace);
+		return Redis::addKey($name, Leaderboard::$namespace);
 	}
 
 	public function getName() {
