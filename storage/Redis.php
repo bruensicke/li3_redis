@@ -73,10 +73,10 @@ class Redis extends \lithium\core\StaticObject {
 
 	public static function resolveFormat($name = null, $format = null) {
 		$format = ($format) ? : static::$_config['format'];
-		return String::insert($format, array(
+		return trim(String::insert($format, array(
 			'name' => ($name) ? : '',
 			'environment' => Environment::get(),
-		));
+		)), ':');
 	}
 
 	/**
