@@ -66,7 +66,7 @@ class Redis extends \lithium\core\StaticObject {
 
 	public static function connection($connection = null) {
 		if (!is_null($connection)) {
-			static::$connection = $connection;
+			return static::$connection = $connection;
 		}
 		return static::$connection;
 	}
@@ -112,20 +112,17 @@ class Redis extends \lithium\core\StaticObject {
 	/**
 	 * searches for keys to look for
 	 *
-	 * @see RedisPlus::keys()
 	 * @param string $search key search string
 	 * @param string $namespace namespace in which to look for
 	 * @return array an array containing all keys, that match the search string and their values
 	 * @filter
 	 */
 	public static function find($search = '*', $namespace = null) {
+		$connection = static::connection();
 		$params = compact('search', 'namespace', 'options');
-		return static::_filter(__METHOD__, $params, function($self, $params) {
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
 			$search = $self::addKey($params['search'], $params['namespace']);
-			$result = call_user_func_array(array($self::connection(), 'keys'), array($search));
-			if (!$options['strip']) {
-				return $result;
-			}
+			$result = $connection->keys($search);
 			$name = $self::resolveFormat($params['namespace']);
 			$return = array();
 			foreach ($result as $value) {
@@ -138,56 +135,36 @@ class Redis extends \lithium\core\StaticObject {
 	/**
 	 * fetches existing keys and their corresponding values
 	 *
-	 * @see RedisPlus::keys()
 	 * @param string $search key search string
 	 * @param string $namespace namespace in which to look for
 	 * @return array an array containing all keys, that match the search string and their values
 	 * @filter
 	 */
 	public static function fetch($search = '*', $namespace = null) {
+		$connection = static::connection();
 		$params = compact('search', 'namespace');
-		return static::_filter(__METHOD__, $params, function($self, $params) {
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
 			$search = $self::addKey($params['search'], $params['namespace']);
-			$keys = call_user_func_array(array($self::connection(), 'keys'), array($search));
+			$keys = $connection->keys($search);
 			if (!is_array($keys)) {
 				return array();
 			}
-			$values = call_user_func_array(array($self::connection(), 'getMultiple'), array($keys));
+			$values = $connection->getMultiple($keys);
 			if (!is_array($values)) {
 				return array();
 			}
 			$result = array_combine($keys, $values);
 			ksort($result);
+			foreach($result as $key => $value) {
+				if ($value !== false) {
+					continue;
+				}
+				if ($connection->hLen($key)) {
+					$result[$key] = $connection->hGetAll($key);
+				}
+			}
 			return $self::removeKey($result, $params['namespace']);
 		});
-	}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	/**
-	 * Sets expiration time for cache keys
-	 *
-	 * @param string $key The key to uniquely identify the cached item
-	 * @param mixed $expiry A `strtotime()`-compatible string indicating when the cached item
-	 *              should expire, or a Unix timestamp.
-	 * @return boolean Returns `true` if expiry could be set for the given key, `false` otherwise.
-	 */
-	protected static function _ttl($key, $expiry) {
-		return static::connection()->expireAt($key, is_int($expiry) ? $expiry : strtotime($expiry));
 	}
 
 	/**
@@ -199,12 +176,12 @@ class Redis extends \lithium\core\StaticObject {
 	 *        then the default cache expiration time set with the cache configuration will be used.
 	 * @return closure Function returning boolean `true` on successful write, `false` otherwise.
 	 */
-	public static function write($key, $value = null, $expiry = null) {
+	public static function write($key, $value = null, $namespace = null, $expiry = null) {
 		$connection = static::connection();
 		$expiry = ($expiry) ?: static::$_config['expiry'];
-		$params = compact('key', 'value', 'expiry');
+		$params = compact('key', 'value', 'namespace', 'expiry');
 		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
-			$key = $self::addKey($params['key']);
+			$key = $self::addKey($params['key'], $params['namespace']);
 			$expiry = $params['expiry'];
 			if (is_array($key)) {
 				if ($connection->mset($key)) {
@@ -218,7 +195,26 @@ class Redis extends \lithium\core\StaticObject {
 					return $ttl;
 				}
 			}
+			if (is_array($params['value'])) {
+				return $self::invokeMethod('writeHash', array_values($params));
+			}
 			if ($result = $connection->set($key, $params['value'])) {
+				if ($expiry) {
+					return $self::invokeMethod('_ttl', array($key, $expiry));
+				}
+				return $result;
+			}
+		});
+	}
+
+	public static function writeHash($key, $value = array(), $namespace = null, $expiry = null) {
+		$connection = static::connection();
+		$expiry = ($expiry) ?: static::$_config['expiry'];
+		$params = compact('key', 'value', 'namespace', 'expiry');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			$key = $self::addKey($params['key'], $params['namespace']);
+			$expiry = $params['expiry'];
+			if ($result = $connection->hMset($key, $params['value'])) {
 				if ($expiry) {
 					return $self::invokeMethod('_ttl', array($key, $expiry));
 				}
@@ -239,9 +235,32 @@ class Redis extends \lithium\core\StaticObject {
 		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
 			$key = $self::addKey($params['key'], $params['namespace']);
 			if (is_array($params['key'])) {
-				return $connection->getMultiple($key);
+				$values = $connection->getMultiple($key);
+				$result = array_combine($params['key'], $values);
+				ksort($result);
+				foreach($result as $key => $value) {
+					if ($value !== false) {
+						continue;
+					}
+					if ($connection->hLen($key)) {
+						$result[$key] = $connection->hGetAll($key);
+					}
+				}
+				return $self::removeKey($result, $params['namespace']);
+			}
+			if ($connection->hLen($key)) {
+				return $self::invokeMethod('readHash', array_values($params));
 			}
 			return $connection->get($key);
+		});
+	}
+
+	public static function readHash($key, $namespace = null) {
+		$connection = static::connection();
+		$params = compact('key', 'namespace');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			$key = $self::addKey($params['key'], $params['namespace']);
+			return $connection->hGetAll($key);
 		});
 	}
 
@@ -295,6 +314,18 @@ class Redis extends \lithium\core\StaticObject {
 		return function($self, $params) use (&$connection, $offset) {
 			return $connection->incr($params['key'], $offset);
 		};
+	}
+
+	/**
+	 * Sets expiration time for cache keys
+	 *
+	 * @param string $key The key to uniquely identify the cached item
+	 * @param mixed $expiry A `strtotime()`-compatible string indicating when the cached item
+	 *              should expire, or a Unix timestamp.
+	 * @return boolean Returns `true` if expiry could be set for the given key, `false` otherwise.
+	 */
+	protected static function _ttl($key, $expiry) {
+		return static::connection()->expireAt($key, is_int($expiry) ? $expiry : strtotime($expiry));
 	}
 
 	/**
