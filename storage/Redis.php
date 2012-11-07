@@ -37,7 +37,9 @@ class Redis extends \lithium\core\StaticObject {
 	}
 
 	/**
-	 * Configures the redis backend for use.
+	 * Configures the redis backend for use as well as some application specific things.
+	 *
+	 * Most notably that will the format, which is a global namespace for the application itself.
 	 *
 	 * This method is called by `Redis::__init()`.
 	 *
@@ -64,19 +66,17 @@ class Redis extends \lithium\core\StaticObject {
 		return static::$_config = $options;
 	}
 
+	/**
+	 * returns the connection object to redis, or stores it as static property
+	 *
+	 * @param object $connection (optional) if passed, will be stored as static class property
+	 * @return object the current redis connection object
+	 */
 	public static function connection($connection = null) {
 		if (!is_null($connection)) {
 			return static::$connection = $connection;
 		}
 		return static::$connection;
-	}
-
-	public static function resolveFormat($name = null, $format = null) {
-		$format = ($format) ? : static::$_config['format'];
-		return trim(String::insert($format, array(
-			'name' => ($name) ? : '',
-			'environment' => Environment::get(),
-		)), ':');
 	}
 
 	/**
@@ -90,8 +90,8 @@ class Redis extends \lithium\core\StaticObject {
 	public static function addKey($name = null, $namespace = null) {
 		$name = ($namespace) ? sprintf('%s:%s', $namespace, $name) : $name;
 		if (is_array($name)) {
-			foreach($name as $key) {
-				//TODO:
+			foreach ($name as $key => $current) {
+				$data[$key] = static::resolveFormat($current);
 			}
 		}
 		return static::resolveFormat($name);
@@ -109,11 +109,24 @@ class Redis extends \lithium\core\StaticObject {
 		return $data;
 	}
 
+	public static function resolveFormat($name = null, $format = null) {
+		$format = ($format) ? : static::$_config['format'];
+		return trim(String::insert($format, array(
+			'name' => ($name) ? : '',
+			'environment' => Environment::get(),
+		)), ':');
+	}
+
 	/**
 	 * searches for keys to look for
 	 *
+	 * if you pass in a namespace, all keys that are returned are manipulated so, that the namespace
+	 * itself does not occur in the keys. That way, you can easily have sub-namespaces in your
+	 * application. If you want to update values for these fields, just pass in the same namespace
+	 * and everything will work as expected.
+	 *
 	 * @param string $search key search string
-	 * @param string $namespace namespace in which to look for
+	 * @param string $namespace The application specific namespace to be prepend on the key
 	 * @return array an array containing all keys, that match the search string and their values
 	 * @filter
 	 */
@@ -135,8 +148,13 @@ class Redis extends \lithium\core\StaticObject {
 	/**
 	 * fetches existing keys and their corresponding values
 	 *
+	 * if you pass in a namespace, all keys that are returned are manipulated so, that the namespace
+	 * itself does not occur in the keys. That way, you can easily have sub-namespaces in your
+	 * application. If you want to update values for these fields, just pass in the same namespace
+	 * and everything will work as expected.
+	 *
 	 * @param string $search key search string
-	 * @param string $namespace namespace in which to look for
+	 * @param string $namespace The application specific namespace to be prepend on the key
 	 * @return array an array containing all keys, that match the search string and their values
 	 * @filter
 	 */
@@ -168,12 +186,17 @@ class Redis extends \lithium\core\StaticObject {
 	}
 
 	/**
-	 * Write value(s) to the cache
+	 * Write value(s) to the redis
 	 *
-	 * @param string $key The key to uniquely identify the cached item
-	 * @param mixed $value The value to be cached
-	 * @param null|string $expiry A strtotime() compatible cache time. If no expiry time is set,
-	 *        then the default cache expiration time set with the cache configuration will be used.
+	 * if value is of type array, writeHash will be automatically called. If you give a namespace
+	 * the returning keys will be stripped of with that namespace.
+	 *
+	 * @see li3_redis\storage\Redis::writeHash()
+	 * @param string $key The key to uniquely identify the redis item
+	 * @param mixed $value The value to be stored in redis
+	 * @param string $namespace The application specific namespace to be prepend on the key
+	 * @param null|string $expiry A strtotime() compatible redis time. If no expiry time is set,
+	 *        then the default redis expiration time set with the redis configuration will be used.
 	 * @return closure Function returning boolean `true` on successful write, `false` otherwise.
 	 */
 	public static function write($key, $value = null, $namespace = null, $expiry = null) {
@@ -207,27 +230,98 @@ class Redis extends \lithium\core\StaticObject {
 		});
 	}
 
-	public static function writeHash($key, $value = array(), $namespace = null, $expiry = null) {
+	/**
+	 * increments all numeric values in a Hashmap in redis
+	 *
+	 * If you give an array of values to be incremented on given hash (identified by key) all
+	 * increments will take the type into account, meaning a float value will be added via
+	 * hIncrByFloat whereas an integer will be incremented as hIncrBy. Note, that redis v2.6 is
+	 * needed for that to work properly. The check is not done via is_float or is_int (as this
+	 * would force you to typecast all values in advance) but via a check against a dot in the
+	 * numeric value instead. The check is done on the given value, not the one probably already
+	 * present in redis.
+	 *
+	 * @param string $key The key to uniquely identify the redis hash
+	 * @param array $value The values to be incremented in redis hashmap
+	 * @param string $namespace The application specific namespace to be prepend on the key
+	 * @param null|string $expiry A strtotime() compatible redis time. If no expiry time is set,
+	 *        then the default redis expiration time set with the redis configuration will be used.
+	 * @return array the updated values of all Hash fields stored in redis for given key
+	 * @filter
+	 */
+	public static function incrementHash($key, $value = array(), $namespace = null, $expiry = null) {
 		$connection = static::connection();
 		$expiry = ($expiry) ?: static::$_config['expiry'];
 		$params = compact('key', 'value', 'namespace', 'expiry');
 		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
 			$key = $self::addKey($params['key'], $params['namespace']);
 			$expiry = $params['expiry'];
-			if ($result = $connection->hMset($key, $params['value'])) {
-				if ($expiry) {
-					return $self::invokeMethod('_ttl', array($key, $expiry));
+			$result = array();
+			if (!is_array($params['value'])) {
+				// TODO: if !is_array()!
+			}
+			foreach ($params['value'] as $field => $val) {
+				switch (true) {
+					case is_numeric($val):
+						$method = (stristr($val, '.') === false) ? 'hIncrBy' : 'hIncrByFloat';
+						$result[$field] = $connection->$method($key, $field, $val);
+						break;
+					// case is_string($val):
+					default:
+						$connection->hSet($key, $field, $val);
+						$result[$field] = $connection->hGet($key, $field);
+						break;
+
 				}
-				return $result;
+			}
+			if ($expiry) {
+				return $self::invokeMethod('_ttl', array($key, $expiry));
+			}
+			return $result;
+		});
+	}
+
+	/**
+	 * writes an array as Hash into redis
+	 *
+	 * @param string $key The key to uniquely identify the redis hash
+	 * @param array $value The values to be stored in redis as Hashmap
+	 * @param string $namespace The application specific namespace to be prepend on the key
+	 * @param null|string $expiry A strtotime() compatible redis time. If no expiry time is set,
+	 *        then the default redis expiration time set with the redis configuration will be used.
+	 * @return array the updated values of all Hash fields stored in redis for given key
+	 * @filter
+	 */
+	public static function writeHash($key, array $value = array(), $namespace = null, $expiry = null) {
+		$connection = static::connection();
+		$expiry = ($expiry) ?: static::$_config['expiry'];
+		$params = compact('key', 'value', 'namespace', 'expiry');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			$key = $self::addKey($params['key'], $params['namespace']);
+			$expiry = $params['expiry'];
+			if ($success = $connection->hMset($key, $params['value'])) {
+				if ($expiry) {
+					$self::invokeMethod('_ttl', array($key, $expiry));
+				}
+				return $self::readHash($params['key'], $params['namespace']);
 			}
 		});
 	}
 
 	/**
-	 * Read value(s) from the cache
+	 * Read value(s) from redis
+	 *
+	 * If $key is an array, all keys and their values will be retrieved. In that case all keys must
+	 * be of type string, because a getMultiple is issued against redis. If a value for a certain
+	 * key is not of type string, unexpected behavior will occur.
+	 *
+	 * If $key points to a key that is of type Hashmap, Redis::readHash will be automatically called
+	 * and the key and namespace will be handed over.
 	 *
 	 * @param string $key The key to uniquely identify the cached item
-	 * @return closure Function returning cached value if successful, `false` otherwise
+	 * @param string $namespace The application specific namespace to be prepend on the key
+	 * @return array the updated values of all keys stored in redis for given key(s)
+	 * @filter
 	 */
 	public static function read($key, $namespace = null) {
 		$connection = static::connection();
@@ -255,6 +349,17 @@ class Redis extends \lithium\core\StaticObject {
 		});
 	}
 
+	/**
+	 * reads an array from a Hashmap from redis
+	 *
+	 * This method will retrieve all fields and their values for a hashmap that is stored on a given
+	 * key in redis.
+	 *
+	 * @param string $key The key to uniquely identify the redis hash
+	 * @param string $namespace The application specific namespace to be prepend on the key
+	 * @return array the values of all Hash fields stored in redis for given key
+	 * @filter
+	 */
 	public static function readHash($key, $namespace = null) {
 		$connection = static::connection();
 		$params = compact('key', 'namespace');
@@ -265,59 +370,70 @@ class Redis extends \lithium\core\StaticObject {
 	}
 
 	/**
-	 * Delete value from the cache
+	 * Delete value(s) from redis
 	 *
-	 * @param string $key The key to uniquely identify the cached item
-	 * @return closure Function returning boolean `true` on successful delete, `false` otherwise
+	 * $key can be a string to identify one key or an array of keys to be deleted.
+	 *
+	 * @param string $key The key to uniquely identify the item in redis
+	 * @param string $namespace The application specific namespace to be prepend on the key
+	 * @return integer the number of values deleted from redis
+	 * @filter
 	 */
-	public static function delete($key) {
+	public static function delete($key, $namespace = null) {
 		$connection =& static::connection();
-
-		return function($self, $params) use (&$connection) {
-			return (boolean) $connection->delete($params['key']);
-		};
+		$params = compact('key', 'namespace');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			$key = $self::addKey($params['key'], $params['namespace']);
+			return $connection->delete($key);
+		});
 	}
 
 	/**
-	 * Performs an atomic decrement operation on specified numeric cache item.
+	 * Performs an atomic decrement operation on specified numeric redis item.
 	 *
 	 * Note that if the value of the specified key is *not* an integer, the decrement
 	 * operation will have no effect whatsoever. Redis chooses to not typecast values
 	 * to integers when performing an atomic decrement operation.
 	 *
-	 * @param string $key Key of numeric cache item to decrement
+	 * @param string $key Key of numeric redis item to decrement
 	 * @param integer $offset Offset to decrement - defaults to 1.
-	 * @return closure Function returning item's new value on successful decrement, else `false`
+	 * @param string $namespace The application specific namespace to be prepend on the key
+	 * @return integer|array new value of decremented item or an array of all values from redis
+	 * @filter
 	 */
-	public static function decrement($key, $offset = 1) {
+	public static function decrement($key, $offset = 1, $namespace = null) {
 		$connection =& static::connection();
-
-		return function($self, $params) use (&$connection, $offset) {
-			return $connection->decr($params['key'], $offset);
-		};
+		$params = compact('key', 'offset', 'namespace');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			$key = $self::addKey($params['key'], $params['namespace']);
+			return $connection->decr($key, $params['offset']);
+		});
 	}
 
 	/**
-	 * Performs an atomic increment operation on specified numeric cache item.
+	 * Performs an atomic increment operation on specified numeric redis item.
 	 *
 	 * Note that if the value of the specified key is *not* an integer, the increment
 	 * operation will have no effect whatsoever. Redis chooses to not typecast values
 	 * to integers when performing an atomic increment operation.
 	 *
-	 * @param string $key Key of numeric cache item to increment
+	 * @param string $key Key of numeric redis item to increment
 	 * @param integer $offset Offset to increment - defaults to 1.
-	 * @return closure Function returning item's new value on successful increment, else `false`
+	 * @param string $namespace The application specific namespace to be prepend on the key
+	 * @return integer|array new value of incremented item or an array of all values from redis
+	 * @filter
 	 */
-	public static function increment($key, $offset = 1) {
+	public static function increment($key, $offset = 1, $namespace = null) {
 		$connection =& static::connection();
-
-		return function($self, $params) use (&$connection, $offset) {
-			return $connection->incr($params['key'], $offset);
-		};
+		$params = compact('key', 'offset', 'namespace');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			$key = $self::addKey($params['key'], $params['namespace']);
+			return $connection->incr($key, $params['offset']);
+		});
 	}
 
 	/**
-	 * Sets expiration time for cache keys
+	 * Sets expiration time for redis keys
 	 *
 	 * @param string $key The key to uniquely identify the cached item
 	 * @param mixed $expiry A `strtotime()`-compatible string indicating when the cached item
@@ -329,7 +445,7 @@ class Redis extends \lithium\core\StaticObject {
 	}
 
 	/**
-	 * Clears user-space cache
+	 * Clears user-space redis
 	 *
 	 * @return mixed True on successful clear, false otherwise
 	 */
