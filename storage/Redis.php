@@ -127,15 +127,22 @@ class Redis extends \lithium\core\StaticObject {
 	 *
 	 * @param string $search key search string
 	 * @param string $namespace The application specific namespace to be prepend on the key
+	 * @param array $options Possible options are:
+	 *     - `raw`: supresses stripping namespace and format out of of keys, defaults to false
 	 * @return array an array containing all keys, that match the search string and their values
 	 * @filter
 	 */
-	public static function find($search = '*', $namespace = null) {
+	public static function find($search = '*', $namespace = null, array $options = array()) {
 		$connection = static::connection();
 		$params = compact('search', 'namespace', 'options');
 		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			$defaults = array('raw' => false);
+			$params['options'] += $defaults;
 			$search = $self::addKey($params['search'], $params['namespace']);
 			$result = $connection->keys($search);
+			if ($params['options']['raw']) {
+				return $result;
+			}
 			$name = $self::resolveFormat($params['namespace']);
 			$return = array();
 			foreach ($result as $value) {
@@ -184,6 +191,37 @@ class Redis extends \lithium\core\StaticObject {
 			return $self::removeKey($result, $params['namespace']);
 		});
 	}
+
+	/**
+	 * fetches fields from hashes, that are defined by a key search pattern
+	 *
+	 * if you pass in a namespace, all keys that are returned are manipulated so, that the namespace
+	 * itself does not occur in the keys. That way, you can easily have sub-namespaces in your
+	 * application. If you want to update values for these fields, just pass in the same namespace
+	 * and everything will work as expected.
+	 *
+	 * @param string $search key search string
+	 * @param string $field field to retrieve
+	 * @param string $namespace The application specific namespace to be prepend on the key
+	 * @return array an array containing all keys, matching the search string and their field values
+	 * @filter
+	 */
+	public static function fetchHashFields($search = '*', $field, $namespace = null) {
+		$connection = static::connection();
+		$params = compact('search', 'field', 'namespace');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			$keys = $self::find($params['search'], $params['namespace'], array('raw' => true));
+			$result = array();
+			if (!is_array($keys)) {
+				return $result;
+			}
+			foreach($keys as $key) {
+				$result[$key] = $connection->hGet($key, $params['field']);
+			}
+			return $self::removeKey($result, $params['namespace']);
+		});
+	}
+
 
 	/**
 	 * Write value(s) to the redis
