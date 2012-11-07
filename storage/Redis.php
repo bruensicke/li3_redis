@@ -46,7 +46,7 @@ class Redis extends \lithium\core\StaticObject {
 	 * @param array $options Possible options are:
 	 *     - `format`: allows setting a prefix for keys, i.e. Environment
 	 *
-	 * @return void
+	 * @return array
 	 */
 	public static function config(array $options = array()) {
 		$config = Libraries::get('li3_redis');
@@ -418,7 +418,7 @@ class Redis extends \lithium\core\StaticObject {
 	 * @filter
 	 */
 	public static function delete($key, $namespace = null) {
-		$connection =& static::connection();
+		$connection = static::connection();
 		$params = compact('key', 'namespace');
 		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
 			$key = $self::addKey($params['key'], $params['namespace']);
@@ -440,7 +440,7 @@ class Redis extends \lithium\core\StaticObject {
 	 * @filter
 	 */
 	public static function decrement($key, $offset = 1, $namespace = null) {
-		$connection =& static::connection();
+		$connection = static::connection();
 		$params = compact('key', 'offset', 'namespace');
 		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
 			$key = $self::addKey($params['key'], $params['namespace']);
@@ -462,7 +462,7 @@ class Redis extends \lithium\core\StaticObject {
 	 * @filter
 	 */
 	public static function increment($key, $offset = 1, $namespace = null) {
-		$connection =& static::connection();
+		$connection = static::connection();
 		$params = compact('key', 'offset', 'namespace');
 		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
 			$key = $self::addKey($params['key'], $params['namespace']);
