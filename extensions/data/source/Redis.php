@@ -118,7 +118,7 @@ class Redis extends \lithium\data\Source {
 	/**
 	 *
 	 */
-	public function describe($entity, array $meta = array()) {}
+	public function describe($entity, $schema = array(), array $meta = array()){}
 
 	/**
 	 *
