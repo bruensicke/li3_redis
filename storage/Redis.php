@@ -442,7 +442,7 @@ class Redis extends \lithium\core\StaticObject {
 		$params = compact('key', 'fields', 'namespace');
 		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
 			$key = $self::addKey($params['key'], $params['namespace']);
-			return $connection->hDel($key, $fields);
+			return $connection->hDel($key, $params['fields']);
 		});
 	}
 
