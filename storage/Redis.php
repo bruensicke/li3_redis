@@ -427,6 +427,26 @@ class Redis extends \lithium\core\StaticObject {
 	}
 
 	/**
+	 * Delete value(s) from redis hashes
+	 *
+	 * $fields can be a string to identify one field or an array of fields to be deleted from hash.
+	 *
+	 * @param string $key The key to uniquely identify the item in redis
+	 * @param string|array $fields The field to remove or an array of fields
+	 * @param string $namespace The application specific namespace to be prepend on the key
+	 * @return integer the number of values deleted from redis
+	 * @filter
+	 */
+	public static function deleteFromHash($key, $fields, $namespace = null) {
+		$connection = static::connection();
+		$params = compact('key', 'fields', 'namespace');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			$key = $self::addKey($params['key'], $params['namespace']);
+			return $connection->hDel($key, $fields);
+		});
+	}
+
+	/**
 	 * Performs an atomic decrement operation on specified numeric redis item.
 	 *
 	 * Note that if the value of the specified key is *not* an integer, the decrement
