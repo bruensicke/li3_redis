@@ -241,7 +241,7 @@ class Leaderboard {
 			$memberData = array();
 			$memberData['member'] = $member;
 			if ($withScores) {
-				$memberData['score'] = $this->scoreForIn($name, $member);
+				$memberData['score'] = (float) $this->scoreForIn($name, $member);
 			}
 			$memberData['rank'] = $this->rankForIn($name, $member, $useZeroIndexForRank);
 
@@ -259,7 +259,7 @@ class Leaderboard {
 		foreach ($leaders as $key => $value) {
 
 			$memberData['member'] = $key;
-			$memberData['score'] = $value;
+			$memberData['score'] = (float) $value;
 
 			if ($withRank) {
 				$memberData['rank'] = $this->rankForIn($name, $key, $useZeroIndexForRank);
