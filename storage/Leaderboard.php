@@ -27,22 +27,30 @@ class Leaderboard {
 
 	public $name; // public name
 	private $connection;
+	private $_namespace;
 	private $_page_size;
 
-	public function __construct($name, $pageSize = Leaderboard::DEFAULT_PAGE_SIZE) {
+	public function __construct($name, $namespace = null) {
 		$this->name = $name;
 		$this->connection = Redis::connection();
+		$this->setNamespace($namespace);
+	}
 
-		if ($pageSize < 1) {
-			$pageSize = Leaderboard::DEFAULT_PAGE_SIZE;
+	public function getNamespace() {
+		if (!empty($this->_namespace)) {
+			return $this->_namespace;
 		}
+		return Leaderboard::$namespace;
+	}
 
-		$this->_page_size = $pageSize;
+	public function setNamespace($namespace = null) {
+		$namespace = ($namespace) ? : Leaderboard::$namespace;
+		return $this->_namespace = $namespace;
 	}
 
 	public function getKey($name = null) {
 		$name = $name ? : $this->name;
-		return Redis::addKey($name, Leaderboard::$namespace);
+		return Redis::addKey($name, $this->getNamespace());
 	}
 
 	public function getName() {
@@ -53,8 +61,7 @@ class Leaderboard {
 		if ($pageSize < 1) {
 			$pageSize = Leaderboard::DEFAULT_PAGE_SIZE;
 		}
-
-		$this->_page_size = $pageSize;
+		return $this->_page_size = $pageSize;
 	}
 
 	public function close() {
