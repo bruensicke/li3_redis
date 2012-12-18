@@ -137,7 +137,7 @@ class Leaderboard {
 	}
 
 	public function rankForIn($name, $member, $useZeroIndexForRank = false) {
-		if ($this->connection->zScore($this->getKey($name), $member) == NULL) {
+		if ($this->connection->zScore($this->getKey($name), $member) == null) {
 			return false;
 		}
 		$rank = $this->connection->zRevRank($this->getKey($name), $member);
@@ -161,7 +161,7 @@ class Leaderboard {
 	}
 
 	public function checkMemberIn($name, $member) {
-		return !($this->connection->zScore($this->getKey($name), $member) == NULL);
+		return !($this->connection->zScore($this->getKey($name), $member) == null);
 	}
 
 	public function scoreAndRankFor($member, $useZeroIndexForRank = false) {
@@ -211,7 +211,7 @@ class Leaderboard {
 		if (!is_null($leaderData)) {
 			return $this->massageLeaderData($name, $leaderData, $withScores, $withRank, $useZeroIndexForRank);
 		} else {
-			return NULL;
+			return null;
 		}
 	}
 
@@ -232,9 +232,8 @@ class Leaderboard {
 		$leaderData = $this->connection->zRevRange($this->getKey($name), $startingOffset, $endingOffset, $withScores);
 		if (!is_null($leaderData)) {
 			return $this->massageLeaderData($name, $leaderData, $withScores, $withRank, $useZeroIndexForRank);
-		} else {
-			return NULL;
 		}
+		return null;
 	}
 
 	public function rankedInList($members, $withScores = true, $useZeroIndexForRank = false) {
