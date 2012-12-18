@@ -257,6 +257,14 @@ class Leaderboard {
 		return $leaderData;
 	}
 
+	public function scoredInList($from, $to, $withScores = true) {
+		return $this->scoredInListIn($this->name, $from, $to, $withScores);
+	}
+
+	public function scoredInListIn($name, $from, $to, $withScores = true) {
+		return $this->connection->zRangeByScore($this->getKey($name), $from, $to, array('withscores' => $withScores));
+	}
+
 	private function massageLeaderData($name, $leaders, $withScores, $withRank, $useZeroIndexForRank) {
 		$memberAttribute = true;
 		$leaderData = array();
