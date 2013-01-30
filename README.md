@@ -1,6 +1,6 @@
 # li3_redis
 
-Lithium library for using redis. Allows easy use of specific use cases with some advanced features.
+redis made ready for lithium
 
 ## Requirements
 
@@ -41,9 +41,12 @@ i want to address the following topics. If you need something or can share somet
 - convert leaderboard class to use lithium standards `_init()` etc. (partly done)
 - use Redis class as utility class for Leaderboard (done)
 - auto-add/remove namespace formats to include environments or other variables in keys (done)
+- add stats class
+- add stats command
 - add points / score class
 - add user messaging system
-- add basic queue system (that may also go into [li3_queue](https://github.com/bruensicke/li3_queue))
+- add basic queue system
+  that may also go into [li3_queue](https://github.com/bruensicke/li3_queue) or [li3_resque](https://github.com/bruensicke/li3_resque.git)
 
 ## Credits
 
@@ -51,3 +54,8 @@ i want to address the following topics. If you need something or can share somet
 * [PHP Leaderboard](https://github.com/agoragames/php-leaderboard).
 
 Please report any bug or feature-request here: https://github.com/bruensicke/li3_redis/issues
+
+## License
+
+This code is distributed under the terms of the BSD 3-Clause License, http://opensource.org/licenses/BSD-3-Clause
+

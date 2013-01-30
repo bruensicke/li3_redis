@@ -1,9 +1,9 @@
 <?php
 /**
- * li3_redis: A Redis datasource for Lithium.
+ * li3_redis: redis made ready for lithium
  *
- * @copyright     Copyright 2012, Dirk Brünsicke
- * @license       http://opensource.org/licenses/bsd-license.php The BSD License
+ * @copyright     Copyright 2013, brünsicke.com GmbH (http://bruensicke.com)
+ * @license       http://opensource.org/licenses/BSD-3-Clause The BSD License
  */
 
 namespace li3_redis\extensions\data\source;

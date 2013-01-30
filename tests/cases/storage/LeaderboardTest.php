@@ -1,4 +1,10 @@
 <?php
+/**
+ * li3_redis: redis made ready for lithium
+ *
+ * @copyright     Copyright 2013, brünsicke.com GmbH (http://bruensicke.com)
+ * @license       http://opensource.org/licenses/BSD-3-Clause The BSD License
+ */
 
 namespace li3_redis\tests\cases\storage;
 
