@@ -147,6 +147,124 @@ class StatsTest extends \lithium\test\Unit {
 		$this->assertEqual(array('field1' => 2, 'field2' => 2), $inRedis3);
 	}
 
+	function testSet() {
+		$scope = __FUNCTION__;
+		Redis::config(array('format' => $scope));
+
+		// simplest call
+		$expected = array('bar' => 'baz');
+		$result = Stats::set('foo', array('bar' => 'baz'));
+		$inRedis = $this->redis->hGetAll("$scope:stats:global:foo");
+		$this->assertEqual($expected, $result);
+		$this->assertEqual($expected, $inRedis);
+
+		// simple call, adding second field
+		$expected = array('bar' => 'baz', 'baz' => 'bak');
+		$result = Stats::set('foo', array('baz' => 'bak'));
+		$inRedis = $this->redis->hGetAll("$scope:stats:global:foo");
+		$this->assertEqual($expected, $result);
+		$this->assertEqual($expected, $inRedis);
+
+		// simple call, overwrite second value
+		$expected = array('bar' => 'baz', 'baz' => 'bam');
+		$result = Stats::set('foo', array('baz' => 'bam'));
+		$inRedis = $this->redis->hGetAll("$scope:stats:global:foo");
+		$this->assertEqual($expected, $result);
+		$this->assertEqual($expected, $inRedis);
+
+		// multiple at once
+		$expected = array('field1' => 1, 'field2' => 1);
+		$result = Stats::set('multi', array('field1' => 1, 'field2' => 1));
+		$inRedis = $this->redis->hGetAll("$scope:stats:global:multi");
+		$this->assertEqual($expected, $result);
+		$this->assertEqual($expected, $inRedis);
+
+		// overwriting multiple at once
+		$expected = array('field1' => 1, 'field2' => 2);
+		$result = Stats::set('multi', array('field1' => 1, 'field2' => 2));
+		$inRedis = $this->redis->hGetAll("$scope:stats:global:multi");
+		$this->assertEqual($expected, $result);
+		$this->assertEqual($expected, $inRedis);
+
+		// multiple at once, with plain bucket
+		$expected = array('field1' => 1, 'field2' => 1);
+		$result = Stats::set('withBucket', $expected, 'prefix');
+		$inRedis1 = $this->redis->hGetAll("$scope:stats:global:withBucket");
+		$inRedis2 = $this->redis->hGetAll("$scope:stats:prefix:withBucket");
+		$this->assertEqual($expected, $result);
+		$this->assertEqual($expected, $inRedis1);
+		$this->assertEqual($expected, $inRedis2);
+
+		// multiple buckets at once
+		$expected = array('field1' => 1, 'field2' => 1);
+		$result = Stats::set('multiBucket', $expected, array('prefix1', 'prefix2'));
+		$inRedis1 = $this->redis->hGetAll("$scope:stats:global:multiBucket");
+		$inRedis2 = $this->redis->hGetAll("$scope:stats:prefix1:multiBucket");
+		$inRedis3 = $this->redis->hGetAll("$scope:stats:prefix2:multiBucket");
+		$this->assertEqual($expected, $result);
+		$this->assertEqual($expected, $inRedis1);
+		$this->assertEqual($expected, $inRedis2);
+		$this->assertEqual($expected, $inRedis3);
+
+		// multiple at once, with one bucket in array
+		$expected = array('field1' => 1, 'field2' => 1);
+		$result = Stats::set('withBucketArray', $expected, array('user' => 'foo'));
+		$inRedis1 = $this->redis->hGetAll("$scope:stats:global:withBucketArray");
+		$inRedis2 = $this->redis->hGetAll("$scope:stats:user:foo:withBucketArray");
+		$this->assertEqual($expected, $result);
+		$this->assertEqual($expected, $inRedis1);
+		$this->assertEqual($expected, $inRedis2);
+
+		// multiple buckets as associated array
+		$expected = array('field1' => 1, 'field2' => 1);
+		$result = Stats::set('multiBucketArray', $expected, array('user' => 'foo', 'year' => '2013'));
+		$inRedis1 = $this->redis->hGetAll("$scope:stats:global:multiBucketArray");
+		$inRedis2 = $this->redis->hGetAll("$scope:stats:user:foo:multiBucketArray");
+		$inRedis3 = $this->redis->hGetAll("$scope:stats:year:2013:multiBucketArray");
+		$this->assertEqual($expected, $result);
+		$this->assertEqual($expected, $inRedis1);
+		$this->assertEqual($expected, $inRedis2);
+		$this->assertEqual($expected, $inRedis3);
+
+		// multiple buckets as associated array with return all
+		$expected = array(
+			'global' => array('field1' => 'foo', 'field2' => 'foo'),
+			'prefix1' => array('field1' => 'foo', 'field2' => 'foo'),
+			'prefix2' => array('field1' => 'foo', 'field2' => 'foo'),
+		);
+		$result = Stats::set('multiBucket',
+			array('field1' => 'foo', 'field2' => 'foo'),
+			array('prefix1', 'prefix2'),
+			array('all' => true)
+		);
+		$inRedis1 = $this->redis->hGetAll("$scope:stats:global:multiBucket");
+		$inRedis2 = $this->redis->hGetAll("$scope:stats:prefix1:multiBucket");
+		$inRedis3 = $this->redis->hGetAll("$scope:stats:prefix2:multiBucket");
+		$this->assertEqual($expected, $result);
+		$this->assertEqual(array('field1' => 'foo', 'field2' => 'foo'), $inRedis1);
+		$this->assertEqual(array('field1' => 'foo', 'field2' => 'foo'), $inRedis2);
+		$this->assertEqual(array('field1' => 'foo', 'field2' => 'foo'), $inRedis3);
+
+		// multiple buckets as associated array with return all
+		$expected = array(
+			'global' => array('field1' => 'foobar', 'field2' => 'foobar'),
+			'user:foo' => array('field1' => 'foobar', 'field2' => 'foobar'),
+			'year:2013' => array('field1' => 'foobar', 'field2' => 'foobar'),
+		);
+		$result = Stats::set('multiBucket',
+			array('field1' => 'foobar', 'field2' => 'foobar'),
+			array('user' => 'foo', 'year' => '2013'),
+			array('all' => true)
+		);
+		$inRedis1 = $this->redis->hGetAll("$scope:stats:global:multiBucket");
+		$inRedis2 = $this->redis->hGetAll("$scope:stats:user:foo:multiBucket");
+		$inRedis3 = $this->redis->hGetAll("$scope:stats:year:2013:multiBucket");
+		$this->assertEqual($expected, $result);
+		$this->assertEqual(array('field1' => 'foobar', 'field2' => 'foobar'), $inRedis1);
+		$this->assertEqual(array('field1' => 'foobar', 'field2' => 'foobar'), $inRedis2);
+		$this->assertEqual(array('field1' => 'foobar', 'field2' => 'foobar'), $inRedis3);
+	}
+
 	function testGet() {
 		$scope = __FUNCTION__;
 		Redis::config(array('format' => $scope));

@@ -108,6 +108,65 @@ class Stats extends \lithium\core\StaticObject {
 	}
 
 	/**
+	 * decreases the amount of given value(s)
+	 *
+	 * The usage is for bucketed stats, e.g. you want to count how many api-requests are made,
+	 * you can count that gor a global bucket (default) and with the same call you can count
+	 * api-calls for a specific range, e.g. user, year or resource.
+	 *
+	 * examples:
+	 *
+	 * {{{
+	 *	Stats::dec('api', 'calls');
+	 *	Stats::dec('api', array('calls' => 1, 'successful' => 1));
+	 *	Stats::dec('api', array('calls' => 1, 'successful' => 1), array('user' => 'foo'));
+	 *	Stats::dec('api', array('calls' => 1), array('user' => 'foo', 'year' => date('Y')));
+	 *	Stats::dec('api', array('calls' => 1), 'prefix');
+	 *	Stats::dec('api', array('calls' => 1), array('prefix'));
+	 *	Stats::dec('api', array('calls' => 1), array('prefix1', 'prefix2'));
+	 *	Stats::dec('api', array('calls' => 1), array('prefix1', 'prefix2'), array('all' => true));
+	 * }}}
+	 *
+	 * Please note, if you pass in buckets, the global bucket will always be incremented as well.
+	 *
+	 * @see li3_redis\storage\Redis::getKey()
+	 * @param string $key redis key in which to store the hash
+	 * @param array|string $values an array of values to decrease, the format is
+	 *        array($name => $value) and can contain an unlimited number of stats to decrease.
+	 *        Can also be a plain string - in that case, we assume you want to increment by 1.
+	 * @param array|string $buckets an array of additional prefixes, can be a numerical indexed
+	 *        array with strings, or an associated array, in which the key and value will be glued
+	 *        together by a separater or just a string, for one additional prefix.
+	 * @param array $options array with additional options, see Redis::getKey()
+	 *     - `all`: if set to true, returns values for all buckets. If not set, only the results of
+	 *        the global bucket will be returned.
+	 * @return mixed the value that has been incremented or an array of values
+	 * @filter
+	 */
+	public static function dec($key, $values, $buckets = 'global', array $options = array()) {
+		$defaults = array('all' => false, 'namespace' => static::$namespace);
+		$options += $defaults;
+		$params = compact('key', 'values', 'buckets', 'options');
+		return static::_filter(__METHOD__, $params, function($self, $params) {
+			extract($params);
+			$result = array();
+
+			$values = (is_string($values)) ? array($values => 1): $values;
+			$buckets = (!is_array($buckets))? array($buckets) : $buckets;
+
+			if (!in_array('global', $buckets)) {
+				$buckets[] = 'global';
+			}
+
+			foreach ($buckets as $prefix => $val) {
+				$options['prefix'] = (!is_numeric($prefix)) ? Redis::addPrefix($val, $prefix) : $val;
+				$result[$options['prefix']] = Redis::decrementHash($key, $values, $options);
+			}
+			return ($options['all']) ? $result : $result['global'];
+		});
+	}
+
+	/**
 	 * Returns an array with all stats and their values in it
 	 *
 	 * If you want to retrieve stats for one specific bucket or dimension, you just pass in
@@ -176,20 +235,42 @@ class Stats extends \lithium\core\StaticObject {
 	}
 
 	/**
-	 * sets given value to the entity's value
+	 * sets given values
 	 *
-	 * @param object $entity instance of current record
-	 * @param integer $value amount of value to set
-	 * @return boolean true on success, false otherwise
+	 * @see li3_redis\storage\Stats::inc()
+	 * @see li3_redis\storage\Redis::getKey()
+	 * @param string $key redis key in which to store the hash
+	 * @param string $values an array of values to store, the format is
+	 *        array($name => $value) and can contain an unlimited number of stats to save.
+	 * @param array|string $buckets an array of additional prefixes, can be a numerical indexed
+	 *        array with strings, or an associated array, in which the key and value will be glued
+	 *        together by a separater or just a string, for one additional prefix.
+	 * @param array $options array with additional options, see Redis::getKey()
+	 *     - `all`: if set to true, returns values for all buckets. If not set, only the results of
+	 *        the global bucket will be returned.
+	 * @return mixed the new value that has been stored or an array of values
 	 * @filter
 	 */
-	public static function set($name, $value, array $options = array()) {
-		$params = compact('name', 'value', 'options');
+	public static function set($key, $values, $buckets = 'global', array $options = array()) {
+		$defaults = array('all' => false, 'namespace' => static::$namespace);
+		$options += $defaults;
+		$params = compact('key', 'values', 'buckets', 'options');
 		return static::_filter(__METHOD__, $params, function($self, $params) {
 			extract($params);
-			$defaults = array('namespace' => $self::$namespace);
-			$options += $defaults;
-			return Redis::write($name, $value, $options['namespace']);
+			$result = array();
+
+			$values = (is_string($values)) ? array($values => 1): $values;
+			$buckets = (!is_array($buckets))? array($buckets) : $buckets;
+
+			if (!in_array('global', $buckets)) {
+				$buckets[] = 'global';
+			}
+
+			foreach ($buckets as $prefix => $val) {
+				$options['prefix'] = (!is_numeric($prefix)) ? Redis::addPrefix($val, $prefix) : $val;
+				$result[$options['prefix']] = Redis::writeHash($key, $values, $options);
+			}
+			return ($options['all']) ? $result : $result['global'];
 		});
 	}
 
