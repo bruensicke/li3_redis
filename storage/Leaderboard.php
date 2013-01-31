@@ -21,7 +21,7 @@ use li3_redis\storage\Redis;
  * http://redis.io/commands#sorted_set
  *
  * The basic implementation is as described in the documentation but there are additional methods
- * available for your gaming leadboards pleasure.
+ * available for your gaming leaderboards pleasure.
  *
  * @see https://github.com/agoragames/leaderboard
  */
@@ -36,10 +36,12 @@ class Leaderboard {
 	private $_namespace;
 	private $_page_size;
 
-	public function __construct($name, $namespace = null) {
+	public function __construct($name, array $options = array()) {
+		$defaults = array('namespace' => static::$namespace);
+		$options += $defaults;
 		$this->name = $name;
 		$this->connection = Redis::connection();
-		$this->setNamespace($namespace);
+		$this->setNamespace($options['namespace']);
 	}
 
 	public function getNamespace() {
@@ -56,7 +58,8 @@ class Leaderboard {
 
 	public function getKey($name = null) {
 		$name = $name ? : $this->name;
-		return Redis::addKey($name, $this->getNamespace());
+		$namespace = $this->getNamespace();
+		return Redis::getKey($name, compact('namespace'));
 	}
 
 	public function getName() {

@@ -22,7 +22,8 @@ class LeaderboardTest extends \lithium\test\Unit {
 		$this->redis->connect('127.0.0.1', 6379);
 		$this->redis->select(1);
 		$this->redis->flushDB();
-		$this->prefix = Redis::formatKey(Leaderboard::$namespace).':';
+		$namespace = Leaderboard::$namespace;
+		$this->prefix = Redis::resolveFormat(null, compact('namespace')).':';
 		Redis::connection()->select(1);
 	}
 
@@ -34,7 +35,8 @@ class LeaderboardTest extends \lithium\test\Unit {
 	function testConstructLeaderboardClassWithName() {
 		$leaderboard = new Leaderboard('leaderboard');
 		$this->assertEqual('leaderboard', $leaderboard->getName());
-		$expected = Redis::formatKey(Leaderboard::$namespace.':leaderboard');
+		$namespace = Leaderboard::$namespace;
+		$expected = Redis::getKey('leaderboard', compact('namespace'));
 		$this->assertEqual($expected, $leaderboard->getKey());
 	}
 
