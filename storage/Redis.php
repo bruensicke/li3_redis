@@ -432,6 +432,74 @@ class Redis extends \lithium\core\StaticObject {
 	}
 
 	/**
+	 * decrements all numeric values in a Hashmap in redis
+	 *
+	 * If you give an array of values to be decremented on given hash (identified by key) all
+	 * decrements will take the type into account, meaning a float value will be added via
+	 * hIncrByFloat whereas an integer will be decremented as hIncrBy. Note, that redis v2.6 is
+	 * needed for that to work properly. The check is not done via is_float or is_int (as this
+	 * would force you to typecast all values in advance) but via a check against a dot in the
+	 * numeric value instead. The check is done on the given value, not the one probably already
+	 * present in redis.
+	 *
+	 * If you pass in values, that are not numeric, a normal set will be issued, so the value will
+	 * be stored, but obviously not decremented, but overwritten.
+	 *
+	 * You can also just decrement by one, on one field on a hash, identified by `$key` if you pass
+	 * in a string, instead of an array as `$values`. See examples for usage:
+	 *
+	 * {{{
+	 *    Redis::decrementHash($key, 'fieldname'); // will decrement by 1
+	 *    Redis::decrementHash($key, array('field1' => 123));
+	 *    Redis::decrementHash($key, array('field1' => 123), array('expiry' => '+1 hour'));
+	 *    Redis::decrementHash($key, array('field1' => 1, 'field2' => 'value2'));
+	 * }}}
+	 *
+	 * Tip: If you pass in an additional field with a datetime string, e.g. date(DATE_ATOM) you will
+	 * be able to determine, when the last update to a hash has been issued.
+	 *
+	 * @see li3_redis\storage\Redis::getKey()
+	 * @param string $key The key to uniquely identify the redis hash
+	 * @param array $values The values to be decremented in redis hashmap
+	 * @param array $options array with additional options, see Redis::getKey()
+	 *     - `expiry`: A strtotime() compatible redis time. If no expiry time is set,
+	 *        then the default redis expiration time set with the redis configuration will be used.
+	 * @return array the updated values of all Hash fields stored in redis for given key
+	 * @filter
+	 */
+	public static function decrementHash($key, $values = array(), array $options = array()) {
+		$connection = static::connection();
+		$defaults = array('expiry' => static::$_config['expiry']);
+		$options += $defaults;
+		$params = compact('key', 'values', 'options');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			$key = $self::getKey($params['key'], $params['options']);
+			$result = array();
+
+			if (!is_array($params['values'])) {
+				return $connection->hIncrBy($key, $params['values'], -1);
+			}
+
+			foreach ($params['values'] as $field => $val) {
+				switch (true) {
+					case is_numeric($val):
+						$method = (stristr($val, '.') === false) ? 'hIncrBy' : 'hIncrByFloat';
+						$result[$field] = $connection->$method($key, $field, -$val);
+						break;
+					default:
+						$connection->hSet($key, $field, $val);
+						$result[$field] = $connection->hGet($key, $field);
+						break;
+				}
+			}
+			if ($params['options']['expiry']) {
+				$self::_ttl($key, $params['options']['expiry']);
+			}
+			return $result;
+		});
+	}
+
+	/**
 	 * writes an array as Hash into redis
 	 *
 	 * Values is an associated array with fieldnames and their values. If you want to store more
