@@ -87,7 +87,7 @@ class Redis extends \lithium\data\Source {
 	/**
 	 * Dispatches a not-found method to the Redis connection object.
 	 *
-	 * If you want to know, what methods are available, have a look at the readme of phprdis.
+	 * If you want to know, what methods are available, have a look at the readme of phpredis.
 	 * One use-case might be to query possible keys, e.g.
 	 *
 	 * {{{Connections::get('li3_redis')->keys('*');}}}
