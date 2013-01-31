@@ -133,6 +133,8 @@ class RedisTest extends \lithium\test\Unit {
 		$this->assertEqual(1, $this->redis->incr("$scope:baz"));
 		$this->assertTrue(Redis::delete('baz'));
 		$this->assertFalse(Redis::delete('non-existent'));
+		$this->assertTrue($this->redis->hMset("$scope:foo", array('name' => 'Joe', 'salary' => 2000)));
+		$this->assertTrue(Redis::delete('foo'));
 	}
 
 	function testDeleteFromHash() {
