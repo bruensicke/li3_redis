@@ -407,9 +407,11 @@ class Redis extends \lithium\core\StaticObject {
 		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
 			$key = $self::getKey($params['key'], $params['options']);
 			$result = array();
+
 			if (!is_array($params['values'])) {
 				return $connection->hIncrBy($key, $params['values'], 1);
 			}
+
 			foreach ($params['values'] as $field => $val) {
 				switch (true) {
 					case is_numeric($val):
