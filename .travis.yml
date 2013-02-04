@@ -11,6 +11,7 @@ before_install:
   - cd ../
   - git clone git://github.com/UnionOfRAD/framework.git
   - cp -fr li3_redis/tests/data/connections.php framework/app/config/bootstrap/connections.php
+  - sed -i -e 's|// Libraries::add('li3_docs');|Libraries::add('li3_redis');|' framework/app/config/bootstrap/libraries.php
   - mv li3_redis/ framework/app/libraries/li3_redis
   - cd framework
   - git submodule update --init --recursive
