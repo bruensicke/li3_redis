@@ -24,7 +24,6 @@ class LeaderboardTest extends \lithium\test\Unit {
 		$this->redis->flushDB();
 		$namespace = Leaderboard::$namespace;
 		$this->prefix = Redis::resolveFormat(null, compact('namespace')).':';
-		Redis::connection()->select(1);
 	}
 
 	public function tearDown() {
