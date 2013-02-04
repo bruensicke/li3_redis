@@ -8,6 +8,8 @@ services:
 #   - REDIS_STANDALONE=0
 #   - REDIS_STANDALONE=1
 before_install:
+
+
   - cd ../
   - git clone git://github.com/UnionOfRAD/framework.git
   - cp -fr li3_redis/tests/data/connections.php framework/app/config/bootstrap/connections.php
@@ -17,7 +19,18 @@ before_install:
   - git submodule update --init --recursive
   - cd libraries/lithium && git pull --rebase origin master
   - cd ../../app/libraries/li3_redis
-  - pecl install redis
-  - echo "extension=redis.so" >> `php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||"`
 
+  - wget https://github.com/nicolasff/phpredis/archive/2.2.2.zip -O php-redis.zip && unzip php-redis.zip
+  - cd phpredis-2.2.2/ && phpize && ./configure && make && make install
+  - cd ..
+  - php --ini
+  - php --ini | grep "Loaded Configuration"
+  - php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||"
+  - echo "extension=redis.so" >> `php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||"`
+  # - echo "extension=redis.so" >> `php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||"`
+
+# before_script:
+#   - sh -c "if [ $REDIS_STANDALONE -eq 0 ]; then wget https://github.com/nicolasff/phpredis/archive/2.2.2.zip -O php-redis.zip && unzip php-redis.zip; fi"
+#   - sh -c "if [ $REDIS_STANDALONE -eq 0 ]; then cd phpredis-2.2.2/ && phpize && ./configure && make && make install; fi"
+#   - sh -c "if [ $REDIS_STANDALONE -eq 0 ]; then echo \"extension=redis.so\" >> `php --ini | grep \"Loaded Configuration\" | sed -e \"s|.*:\s*||\"`; fi"
 script: ../../../libraries/lithium/console/li3 test tests
