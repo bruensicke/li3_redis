@@ -11,6 +11,7 @@ namespace li3_redis\tests\cases\storage;
 use li3_redis\storage\Leaderboard;
 use li3_redis\storage\Redis;
 
+use lithium\data\Connections;
 use Redis as RedisCore;
 
 class LeaderboardTest extends \lithium\test\Unit {
@@ -24,9 +25,6 @@ class LeaderboardTest extends \lithium\test\Unit {
 		$hasDb = (isset($this->_connectionConfig['type']) && $this->_connectionConfig['type'] == 'Redis');
 		$message = 'Test database is either unavailable, or not a Redis connection!';
 		$this->skipIf(!$hasDb, $message);
-
-		$this->connection = new Redis($this->_connectionConfig);
-		$this->connection->select(1);
 	}
 
 	public function setUp() {
