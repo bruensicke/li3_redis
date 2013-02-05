@@ -72,10 +72,10 @@ class Stats extends \lithium\core\StaticObject {
 	 *
 	 * @see li3_redis\storage\Redis::getKey()
 	 * @param string $key redis key in which to store the hash
-	 * @param array|string $values an array of values to increase, the format is
+	 * @param string|array $values an array of values to increase, the format is
 	 *        array($name => $value) and can contain an unlimited number of stats to increase.
 	 *        Can also be a plain string - in that case, we assume you want to increment by 1.
-	 * @param array|string $buckets an array of additional prefixes, can be a numerical indexed
+	 * @param string|array $buckets an array of additional prefixes, can be a numerical indexed
 	 *        array with strings, or an associated array, in which the key and value will be glued
 	 *        together by a separater or just a string, for one additional prefix.
 	 * @param array $options array with additional options, see Redis::getKey()
@@ -131,10 +131,10 @@ class Stats extends \lithium\core\StaticObject {
 	 *
 	 * @see li3_redis\storage\Redis::getKey()
 	 * @param string $key redis key in which to store the hash
-	 * @param array|string $values an array of values to decrease, the format is
+	 * @param string|array $values an array of values to decrease, the format is
 	 *        array($name => $value) and can contain an unlimited number of stats to decrease.
 	 *        Can also be a plain string - in that case, we assume you want to increment by 1.
-	 * @param array|string $buckets an array of additional prefixes, can be a numerical indexed
+	 * @param string|array $buckets an array of additional prefixes, can be a numerical indexed
 	 *        array with strings, or an associated array, in which the key and value will be glued
 	 *        together by a separater or just a string, for one additional prefix.
 	 * @param array $options array with additional options, see Redis::getKey()
@@ -237,12 +237,17 @@ class Stats extends \lithium\core\StaticObject {
 	/**
 	 * sets given values
 	 *
+	 * {{{
+	 *   Stats::set('foo', array('field' => 'value'));
+	 *   Stats::set('foo', array('field1' => 'value1', 'field2' => 'value2'));
+	 * }}}
+	 *
 	 * @see li3_redis\storage\Stats::inc()
 	 * @see li3_redis\storage\Redis::getKey()
 	 * @param string $key redis key in which to store the hash
-	 * @param string $values an array of values to store, the format is
+	 * @param array $values an array of values to store, the format is
 	 *        array($name => $value) and can contain an unlimited number of stats to save.
-	 * @param array|string $buckets an array of additional prefixes, can be a numerical indexed
+	 * @param string|array $buckets an array of additional prefixes, can be a numerical indexed
 	 *        array with strings, or an associated array, in which the key and value will be glued
 	 *        together by a separater or just a string, for one additional prefix.
 	 * @param array $options array with additional options, see Redis::getKey()
@@ -271,6 +276,53 @@ class Stats extends \lithium\core\StaticObject {
 				$result[$options['prefix']] = Redis::writeHash($key, $values, $options);
 			}
 			return ($options['all']) ? $result : $result['global'];
+		});
+	}
+
+	/**
+	 * delete given values from Stats, or a whole stats set at once
+	 *
+	 * {{{
+	 *   Stats::delete('foo'); // will remove the whole set
+	 *   Stats::delete('foo', 'field'); // will remove `field` from `foo`
+	 *   Stats::delete('foo', array('field')); // same as above
+	 *   Stats::delete('foo', array('field1', 'field2')); // will remove both fields from `foo`
+	 * }}}
+	 *
+	 *
+	 * @see li3_redis\storage\Stats::inc()
+	 * @see li3_redis\storage\Redis::getKey()
+	 * @param string $key redis key which identifies the hash
+	 * @param string|array $fields a string to remove a field from given hash or an array thereof.
+	 * @param string|array $buckets an array of additional prefixes, can be a numerical indexed
+	 *        array with strings, or an associated array, in which the key and value will be glued
+	 *        together by a separater or just a string, for one additional prefix.
+	 * @param array $options array with additional options, see Redis::getKey()
+	 * @return integer count of values that has been removed
+	 * @filter
+	 */
+	public static function delete($key, $fields = null, $buckets = 'global', array $options = array()) {
+		$defaults = array('namespace' => static::$namespace);
+		$options += $defaults;
+		$params = compact('key', 'fields', 'buckets', 'options');
+		return static::_filter(__METHOD__, $params, function($self, $params) {
+			extract($params);
+			$result = array();
+
+			$buckets = (!is_array($buckets))? array($buckets) : $buckets;
+
+			foreach ($buckets as $prefix => $val) {
+				$options['prefix'] = (!is_numeric($prefix))
+					? Redis::addPrefix($val, $prefix)
+					: $val;
+				if (empty($fields)) {
+					$result[] = Redis::delete($key, $options);
+				} else {
+					$return = Redis::deleteFromHash($key, $fields, $options);
+					$result[] = (is_numeric($return)) ? $return : array_sum($return);
+				}
+			}
+			return array_sum($result);
 		});
 	}
 

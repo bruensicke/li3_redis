@@ -157,6 +157,131 @@ class StatsTest extends \lithium\test\Unit {
 		$this->assertEqual(array('field1' => 2, 'field2' => 2), $inRedis3);
 	}
 
+	function testDelete() {
+		$scope = __FUNCTION__;
+		Redis::config(array('format' => $scope));
+		$data1 = array('calls' => 140, 'fails' => 22, 'successful' => 118);
+		$data2 = array('calls' => 35, 'fails' => 3, 'successful' => 32);
+		$data3 = array('calls' => 28, 'fails' => 16, 'successful' => 12);
+		$this->assertTrue($this->redis->hMset("$scope:stats:global:foo", $data1));
+		$this->assertTrue($this->redis->hMset("$scope:stats:prefix1:foo", $data2));
+		$this->assertTrue($this->redis->hMset("$scope:stats:prefix2:foo", $data3));
+		$this->assertTrue($this->redis->hMset("$scope:stats:global:bar", $data1));
+		$this->assertTrue($this->redis->hMset("$scope:stats:user:foo:bar", $data2));
+		$this->assertTrue($this->redis->hMset("$scope:stats:year:2013:bar", $data3));
+		$this->assertEqual($data1, $this->redis->hGetAll("$scope:stats:global:foo"));
+		$this->assertEqual($data2, $this->redis->hGetAll("$scope:stats:prefix1:foo"));
+		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:prefix2:foo"));
+		$this->assertEqual($data1, $this->redis->hGetAll("$scope:stats:global:bar"));
+		$this->assertEqual($data2, $this->redis->hGetAll("$scope:stats:user:foo:bar"));
+		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:year:2013:bar"));
+
+		// simplest call (except delete key at all)
+		$expected = $data1;
+		unset($expected['calls']);
+		$result = Stats::delete('foo', 'calls');
+		$this->assertEqual(1, $result);
+		$this->assertEqual($expected, $this->redis->hGetAll("$scope:stats:global:foo"));
+		$this->assertEqual($data2, $this->redis->hGetAll("$scope:stats:prefix1:foo"));
+		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:prefix2:foo"));
+
+		// array call, one field
+		$expected = $data1;
+		unset($expected['calls']);
+		unset($expected['fails']);
+		$result = Stats::delete('foo', array('fails'));
+		$this->assertEqual(1, $result);
+		$this->assertEqual($expected, $this->redis->hGetAll("$scope:stats:global:foo"));
+		$this->assertEqual($data2, $this->redis->hGetAll("$scope:stats:prefix1:foo"));
+		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:prefix2:foo"));
+
+		// array call, two fields
+		$expected = $data1;
+		unset($expected['calls']);
+		unset($expected['successful']);
+		$result = Stats::delete('bar', array('calls', 'successful'));
+		$this->assertEqual(2, $result);
+		$this->assertEqual($expected, $this->redis->hGetAll("$scope:stats:global:bar"));
+		$this->assertEqual($data2, $this->redis->hGetAll("$scope:stats:user:foo:bar"));
+		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:year:2013:bar"));
+
+		/**
+		 * start over again
+		 */
+		$this->assertTrue($this->redis->hMset("$scope:stats:global:foo", $data1));
+		$this->assertTrue($this->redis->hMset("$scope:stats:prefix1:foo", $data2));
+		$this->assertTrue($this->redis->hMset("$scope:stats:prefix2:foo", $data3));
+		$this->assertTrue($this->redis->hMset("$scope:stats:global:bar", $data1));
+		$this->assertTrue($this->redis->hMset("$scope:stats:user:foo:bar", $data2));
+		$this->assertTrue($this->redis->hMset("$scope:stats:year:2013:bar", $data3));
+		$this->assertEqual($data1, $this->redis->hGetAll("$scope:stats:global:foo"));
+		$this->assertEqual($data2, $this->redis->hGetAll("$scope:stats:prefix1:foo"));
+		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:prefix2:foo"));
+		$this->assertEqual($data1, $this->redis->hGetAll("$scope:stats:global:bar"));
+		$this->assertEqual($data2, $this->redis->hGetAll("$scope:stats:user:foo:bar"));
+		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:year:2013:bar"));
+
+		// array call, two fields, one bucket
+		$expected = $data2;
+		unset($expected['calls']);
+		unset($expected['successful']);
+		$result = Stats::delete('foo', array('calls', 'successful'), 'prefix1');
+		$this->assertEqual(2, $result);
+		$this->assertEqual($data1, $this->redis->hGetAll("$scope:stats:global:foo"));
+		$this->assertEqual($expected, $this->redis->hGetAll("$scope:stats:prefix1:foo"));
+		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:prefix2:foo"));
+
+		/**
+		 * start over again
+		 */
+		$this->assertTrue($this->redis->hMset("$scope:stats:global:foo", $data1));
+		$this->assertTrue($this->redis->hMset("$scope:stats:prefix1:foo", $data2));
+		$this->assertTrue($this->redis->hMset("$scope:stats:prefix2:foo", $data3));
+		$this->assertTrue($this->redis->hMset("$scope:stats:global:bar", $data1));
+		$this->assertTrue($this->redis->hMset("$scope:stats:user:foo:bar", $data2));
+		$this->assertTrue($this->redis->hMset("$scope:stats:year:2013:bar", $data3));
+		$this->assertEqual($data1, $this->redis->hGetAll("$scope:stats:global:foo"));
+		$this->assertEqual($data2, $this->redis->hGetAll("$scope:stats:prefix1:foo"));
+		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:prefix2:foo"));
+		$this->assertEqual($data1, $this->redis->hGetAll("$scope:stats:global:bar"));
+		$this->assertEqual($data2, $this->redis->hGetAll("$scope:stats:user:foo:bar"));
+		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:year:2013:bar"));
+
+		// array call, one field, two buckets
+		$expected1 = $data2;
+		unset($expected1['fails']);
+		$expected2 = $data3;
+		unset($expected2['fails']);
+		$result = Stats::delete('foo', 'fails', array('prefix1', 'prefix2'));
+		$this->assertEqual(2, $result);
+		$this->assertEqual($data1, $this->redis->hGetAll("$scope:stats:global:foo"));
+		$this->assertEqual($expected1, $this->redis->hGetAll("$scope:stats:prefix1:foo"));
+		$this->assertEqual($expected2, $this->redis->hGetAll("$scope:stats:prefix2:foo"));
+
+		/**
+		 * start over again
+		 */
+		$this->assertTrue($this->redis->hMset("$scope:stats:global:foo", $data1));
+		$this->assertTrue($this->redis->hMset("$scope:stats:prefix1:foo", $data2));
+		$this->assertTrue($this->redis->hMset("$scope:stats:prefix2:foo", $data3));
+		$this->assertTrue($this->redis->hMset("$scope:stats:global:bar", $data1));
+		$this->assertTrue($this->redis->hMset("$scope:stats:user:foo:bar", $data2));
+		$this->assertTrue($this->redis->hMset("$scope:stats:year:2013:bar", $data3));
+		$this->assertEqual($data1, $this->redis->hGetAll("$scope:stats:global:foo"));
+		$this->assertEqual($data2, $this->redis->hGetAll("$scope:stats:prefix1:foo"));
+		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:prefix2:foo"));
+		$this->assertEqual($data1, $this->redis->hGetAll("$scope:stats:global:bar"));
+		$this->assertEqual($data2, $this->redis->hGetAll("$scope:stats:user:foo:bar"));
+		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:year:2013:bar"));
+
+		// delete key
+		$result = Stats::delete('foo');
+		$this->assertEqual(1, $result);
+		$this->assertFalse($this->redis->hGetAll("$scope:stats:global:foo"));
+		$this->assertEqual($data2, $this->redis->hGetAll("$scope:stats:prefix1:foo"));
+		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:prefix2:foo"));
+	}
+
 	function testSet() {
 		$scope = __FUNCTION__;
 		Redis::config(array('format' => $scope));
@@ -290,6 +415,9 @@ class StatsTest extends \lithium\test\Unit {
 		$this->assertEqual($data1, $this->redis->hGetAll("$scope:stats:global:foo"));
 		$this->assertEqual($data2, $this->redis->hGetAll("$scope:stats:prefix1:foo"));
 		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:prefix2:foo"));
+		$this->assertEqual($data1, $this->redis->hGetAll("$scope:stats:global:bar"));
+		$this->assertEqual($data2, $this->redis->hGetAll("$scope:stats:user:foo:bar"));
+		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:year:2013:bar"));
 
 		// simplest call
 		$this->assertEqual($data1, Stats::get('foo'));
