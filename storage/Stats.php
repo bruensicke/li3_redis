@@ -118,7 +118,7 @@ class Stats extends \lithium\core\StaticObject {
 	 *	Stats::dec('api', array('calls' => 1), 'prefix');
 	 *	Stats::dec('api', array('calls' => 1), array('prefix'));
 	 *	Stats::dec('api', array('calls' => 1), array('prefix1', 'prefix2'));
-	 *	Stats::dec('api', array('calls' => 1), array('prefix1', 'prefix2'), array('all' => true));
+	 *	Stats::dec('api', array('calls' => 1), array('prefix1'), array('namespace' => 'foo'));
 	 * }}}
 	 *
 	 * Please note, if you pass in buckets, the global bucket will always be incremented as well.
