@@ -65,7 +65,7 @@ class Stats extends \lithium\core\StaticObject {
 	 *	Stats::inc('api', array('calls' => 1), 'prefix');
 	 *	Stats::inc('api', array('calls' => 1), array('prefix'));
 	 *	Stats::inc('api', array('calls' => 1), array('prefix1', 'prefix2'));
-	 *	Stats::inc('api', array('calls' => 1), array('prefix1', 'prefix2'), array('all' => true));
+	 *	Stats::inc('api', array('calls' => 1), array('prefix1'), array('namespace' => 'foo'));
 	 * }}}
 	 *
 	 * Please note, if you pass in buckets, the global bucket will always be incremented as well.
@@ -79,13 +79,11 @@ class Stats extends \lithium\core\StaticObject {
 	 *        array with strings, or an associated array, in which the key and value will be glued
 	 *        together by a separater or just a string, for one additional prefix.
 	 * @param array $options array with additional options, see Redis::getKey()
-	 *     - `all`: if set to true, returns values for all buckets. If not set, only the results of
-	 *        the global bucket will be returned.
 	 * @return mixed the value that has been incremented or an array of values
 	 * @filter
 	 */
 	public static function inc($key, $values, $buckets = 'global', array $options = array()) {
-		$defaults = array('all' => false, 'namespace' => static::$namespace);
+		$defaults = array('namespace' => static::$namespace);
 		$options += $defaults;
 		$params = compact('key', 'values', 'buckets', 'options');
 		return static::_filter(__METHOD__, $params, function($self, $params) {
@@ -95,15 +93,11 @@ class Stats extends \lithium\core\StaticObject {
 			$values = (is_string($values)) ? array($values => 1): $values;
 			$buckets = (!is_array($buckets))? array($buckets) : $buckets;
 
-			if (!in_array('global', $buckets)) {
-				$buckets[] = 'global';
-			}
-
 			foreach ($buckets as $prefix => $val) {
 				$options['prefix'] = (!is_numeric($prefix)) ? Redis::addPrefix($val, $prefix) : $val;
 				$result[$options['prefix']] = Redis::incrementHash($key, $values, $options);
 			}
-			return ($options['all']) ? $result : $result['global'];
+			return (count($result) > 1) ? $result : array_shift($result);
 		});
 	}
 
@@ -138,13 +132,11 @@ class Stats extends \lithium\core\StaticObject {
 	 *        array with strings, or an associated array, in which the key and value will be glued
 	 *        together by a separater or just a string, for one additional prefix.
 	 * @param array $options array with additional options, see Redis::getKey()
-	 *     - `all`: if set to true, returns values for all buckets. If not set, only the results of
-	 *        the global bucket will be returned.
 	 * @return mixed the value that has been incremented or an array of values
 	 * @filter
 	 */
 	public static function dec($key, $values, $buckets = 'global', array $options = array()) {
-		$defaults = array('all' => false, 'namespace' => static::$namespace);
+		$defaults = array('namespace' => static::$namespace);
 		$options += $defaults;
 		$params = compact('key', 'values', 'buckets', 'options');
 		return static::_filter(__METHOD__, $params, function($self, $params) {
@@ -154,15 +146,11 @@ class Stats extends \lithium\core\StaticObject {
 			$values = (is_string($values)) ? array($values => 1): $values;
 			$buckets = (!is_array($buckets))? array($buckets) : $buckets;
 
-			if (!in_array('global', $buckets)) {
-				$buckets[] = 'global';
-			}
-
 			foreach ($buckets as $prefix => $val) {
 				$options['prefix'] = (!is_numeric($prefix)) ? Redis::addPrefix($val, $prefix) : $val;
 				$result[$options['prefix']] = Redis::decrementHash($key, $values, $options);
 			}
-			return ($options['all']) ? $result : $result['global'];
+			return (count($result) > 1) ? $result : array_shift($result);
 		});
 	}
 
@@ -230,7 +218,7 @@ class Stats extends \lithium\core\StaticObject {
 				$options['prefix'] = (!is_numeric($prefix)) ? Redis::addPrefix($val, $prefix) : $val;
 				$result[$options['prefix']] = Redis::readHash($key, $fields, $options);
 			}
-			return (count($result) > 1) ? $result : array_pop($result);
+			return (count($result) > 1) ? $result : array_shift($result);
 		});
 	}
 
@@ -251,13 +239,11 @@ class Stats extends \lithium\core\StaticObject {
 	 *        array with strings, or an associated array, in which the key and value will be glued
 	 *        together by a separater or just a string, for one additional prefix.
 	 * @param array $options array with additional options, see Redis::getKey()
-	 *     - `all`: if set to true, returns values for all buckets. If not set, only the results of
-	 *        the global bucket will be returned.
 	 * @return mixed the new value that has been stored or an array of values
 	 * @filter
 	 */
 	public static function set($key, $values, $buckets = 'global', array $options = array()) {
-		$defaults = array('all' => false, 'namespace' => static::$namespace);
+		$defaults = array('namespace' => static::$namespace);
 		$options += $defaults;
 		$params = compact('key', 'values', 'buckets', 'options');
 		return static::_filter(__METHOD__, $params, function($self, $params) {
@@ -267,15 +253,11 @@ class Stats extends \lithium\core\StaticObject {
 			$values = (is_string($values)) ? array($values => 1): $values;
 			$buckets = (!is_array($buckets))? array($buckets) : $buckets;
 
-			if (!in_array('global', $buckets)) {
-				$buckets[] = 'global';
-			}
-
 			foreach ($buckets as $prefix => $val) {
 				$options['prefix'] = (!is_numeric($prefix)) ? Redis::addPrefix($val, $prefix) : $val;
 				$result[$options['prefix']] = Redis::writeHash($key, $values, $options);
 			}
-			return ($options['all']) ? $result : $result['global'];
+			return (count($result) > 1) ? $result : array_shift($result);
 		});
 	}
 
