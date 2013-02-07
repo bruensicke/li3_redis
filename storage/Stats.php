@@ -343,6 +343,45 @@ class Stats extends \lithium\core\StaticObject {
 			return Redis::readHash($params['key'], $params['fields'], $params['options']);
 		});
 	}
+
+	/**
+	 * returns how many fields are at given `$key`
+	 *
+	 * {{{
+	 *  Stats::length('requests');
+	 *  Stats::length('requests', 'bucket1');
+	 *  Stats::length('requests', array('bucket1', 'bucket2'));
+	 *  Stats::length('requests', array('user' => 'foo'));
+	 *  Stats::length('requests', array('user' => 'foo', 'year' => date('Y')));
+	 *  Stats::length('requests', 'global', array('prefix' => 'bar');
+	 *  Stats::length('requests', 'global', array('prefix' => 'bar', 'namespace' => 'baz'));
+	 * }}}
+	 *
+	 * @see li3_redis\storage\Redis::getKey()
+	 * @param string $key redis key which identifies the hash
+	 * @param string|array $buckets an array of additional prefixes, can be a numerical indexed
+	 *        array with strings, or an associated array, in which the key and value will be glued
+	 *        together by a separater or just a string, for one additional prefix.
+	 * @param array $options array with additional options, see Redis::getKey()
+	 * @filter
+	 */
+	public static function length($key, $buckets = 'global', array $options = array()) {
+		$defaults = array('prefix' => 'global', 'namespace' => static::$namespace);
+		$options += $defaults;
+		$params = compact('key', 'buckets', 'options');
+		return static::_filter(__METHOD__, $params, function($self, $params) {
+			extract($params);
+			$result = array();
+
+			$buckets = (!is_array($buckets))? array($buckets) : $buckets;
+
+			foreach ($buckets as $prefix => $val) {
+				$options['prefix'] = (!is_numeric($prefix)) ? Redis::addPrefix($val, $prefix) : $val;
+				$result[$options['prefix']] = Redis::hashLength($key, $options);
+			}
+			return (count($result) > 1) ? $result : array_shift($result);
+		});
+	}
 }
 
 ?>

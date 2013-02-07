@@ -264,6 +264,39 @@ class StatsTest extends \lithium\test\Unit {
 		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:prefix2:foo"));
 	}
 
+	function testLength() {
+		$scope = __FUNCTION__;
+		Redis::config(array('format' => $scope));
+		$data1 = array('one' => 14, 'two' => 22);
+		$data2 = array('one' => 35, 'two' => 31, 'three' => 32);
+		$data3 = array('one' => 28, 'two' => 16, 'three' => 12, 'four' => 34);
+		$this->assertTrue($this->redis->hMset("$scope:stats:global:foo", $data1));
+		$this->assertTrue($this->redis->hMset("$scope:stats:prefix1:foo", $data2));
+		$this->assertTrue($this->redis->hMset("$scope:stats:prefix2:foo", $data3));
+		$this->assertTrue($this->redis->hMset("$scope:stats:global:bar", $data1));
+		$this->assertTrue($this->redis->hMset("$scope:stats:user:foo:bar", $data2));
+		$this->assertTrue($this->redis->hMset("$scope:stats:year:2013:bar", $data3));
+		$this->assertEqual($data1, $this->redis->hGetAll("$scope:stats:global:foo"));
+		$this->assertEqual($data2, $this->redis->hGetAll("$scope:stats:prefix1:foo"));
+		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:prefix2:foo"));
+		$this->assertEqual($data1, $this->redis->hGetAll("$scope:stats:global:bar"));
+		$this->assertEqual($data2, $this->redis->hGetAll("$scope:stats:user:foo:bar"));
+		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:year:2013:bar"));
+
+		// simplest call
+		$this->assertEqual(2, Stats::length('foo'));
+
+		// one bucket
+		$this->assertEqual(2, Stats::length('foo', 'global'));
+
+		// one bucket as array
+		$this->assertEqual(3, Stats::length('foo', array('prefix1')));
+
+		// multi buckets as array
+		$expected = array('global' => 2, 'prefix2' => 4);
+		$this->assertEqual($expected, Stats::length('foo', array('global', 'prefix2')));
+	}
+
 	function testSet() {
 		$scope = __FUNCTION__;
 		Redis::config(array('format' => $scope));
