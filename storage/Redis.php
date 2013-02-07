@@ -632,6 +632,27 @@ class Redis extends \lithium\core\StaticObject {
 	}
 
 	/**
+	 * get number of values within a hash from redis
+	 *
+	 * {{{
+	 *    Redis::hashLength('key');
+	 * }}}
+	 *
+	 * @see li3_redis\storage\Redis::getKey()
+	 * @param string $key The key to uniquely identify the item in redis
+	 * @param array $options array with additional options, see Redis::getKey()
+	 * @return integer|boolean the number of values in that hash, false if key does not exist
+	 * @filter
+	 */
+	public static function hashLength($key, array $options = array()) {
+		$connection = static::connection();
+		$params = compact('key', 'options');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			return $connection->hLen($self::getKey($params['key'], $params['options']));
+		});
+	}
+
+	/**
 	 * Delete value(s) from redis
 	 *
 	 * $key can be a string to identify one key or an array of keys to be deleted. It does not
