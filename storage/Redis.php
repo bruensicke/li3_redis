@@ -653,6 +653,48 @@ class Redis extends \lithium\core\StaticObject {
 	}
 
 	/**
+	 * get sum of values within a hash from redis
+	 *
+	 * {{{
+	 *    Redis::hashSum('key');
+	 * }}}
+	 *
+	 * @see li3_redis\storage\Redis::getKey()
+	 * @param string $key The key to uniquely identify the item in redis
+	 * @param array $options array with additional options, see Redis::getKey()
+	 * @return integer the sum of all numeric values for given hash
+	 * @filter
+	 */
+	public static function hashSum($key, array $options = array()) {
+		$connection = static::connection();
+		$params = compact('key', 'options');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			return array_sum($connection->hVals($self::getKey($params['key'], $params['options'])));
+		});
+	}
+
+	/**
+	 * get all values from a hash from redis
+	 *
+	 * {{{
+	 *    Redis::hashValues('key');
+	 * }}}
+	 *
+	 * @see li3_redis\storage\Redis::getKey()
+	 * @param string $key The key to uniquely identify the item in redis
+	 * @param array $options array with additional options, see Redis::getKey()
+	 * @return array the values of all fields for given hash
+	 * @filter
+	 */
+	public static function hashValues($key, array $options = array()) {
+		$connection = static::connection();
+		$params = compact('key', 'options');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			return $connection->hVals($self::getKey($params['key'], $params['options']));
+		});
+	}
+
+	/**
 	 * Delete value(s) from redis
 	 *
 	 * $key can be a string to identify one key or an array of keys to be deleted. It does not
