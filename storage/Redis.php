@@ -877,28 +877,34 @@ class Redis extends \lithium\core\StaticObject {
 	 *     - `namespace`: namespace used within Redis, see docs about namespaces
 	 * @return string|array a concatenation with prefix, a colon `:` and key, in case you requested
 	 *         multiple keys at once, you will get an indexed array with all generated keys.
+	 * @filter
 	 */
 	public static function getKey($key, array $options = array()) {
-		if (is_array($key)) {
-			$result = array();
-			foreach ($key as $k => $v) {
-				if (!is_numeric($k)) {
-					$newK = static::getKey($k, $options);
-					$result[$newK] = $v;
-					unset($result[$k]);
-				} else {
-					$result[] = static::getKey($v, $options);
+		$params = compact('key', 'options');
+		return static::_filter(__METHOD__, $params, function($self, $params) {
+			if (is_array($params['key'])) {
+				$result = array();
+				foreach ($params['key'] as $k => $v) {
+					if (!is_numeric($k)) {
+						$newK = $self::getKey($k, $params['options']);
+						$result[$newK] = $v;
+						unset($result[$k]);
+					} else {
+						$result[] = $self::getKey($v, $params['options']);
+					}
 				}
+				return $result;
 			}
-			return $result;
-		}
-		if (!empty($options['prefix'])) {
-			$key = static::addPrefix($key, $options['prefix']);
-		}
-		if (!empty($options['namespace'])) {
-			$key = static::addPrefix($key, $options['namespace']);
-		}
-		return static::resolveFormat($key, $options);
+			if (!empty($params['options']['prefix'])) {
+				$params['key'] = $self::addPrefix($params['key'], $params['options']['prefix']);
+			}
+			if (!empty($params['options']['namespace'])) {
+				$params['key'] = $self::addPrefix($params['key'], $params['options']['namespace']);
+			}
+			return $self::resolveFormat($params['key'], $params['options']);
+		});
+
+
 	}
 
 	/**
