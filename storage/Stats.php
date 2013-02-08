@@ -309,38 +309,92 @@ class Stats extends \lithium\core\StaticObject {
 	}
 
 	/**
-	 * returns statistic values, determined by key and fields
+	 * returns statistic values as flat array, without keys.
 	 *
-	 * The main-purpose of this method is to have a quick way to access a certain stat-value. You
-	 * can even request stat-values for a bucketed value, if you know the prefix and set that in
-	 * options, see examples.
+	 * If you want an associated array, have a look at `Stats::get()`. There is no way to narrow
+	 * the amount of fields retrieved. This method will simply fetch all available values from all
+	 * fields that are stored in given hash.
 	 *
-	 * The values will be returned as flat, as possible, meaning: if it is only one value, the value
-	 * will be returned on its own. If you request more than one value, an array is returned.
+	 * That is useful, if you exactly know that fields are at given hash and want to optimize the
+	 * request speed for this operation. It is a little bit faster than get, because it does not
+	 * need to fetch the names of each field. The performance win is even bigger on larger hashes.
 	 *
 	 * examples:
 	 *
 	 * {{{
-	 *	Stats::values('api', 'calls');
-	 *	Stats::values('api', array('calls', 'successful'));
-	 *	Stats::values('api', array('calls', 'successful'), array('prefix' => 'foo'));
-	 *	Stats::values('api', array('calls'), array('prefix' => 'foo', 'namespace' => 'bar'));
-	 *	Stats::values('api', 'calls', array('prefix' => 'foo'));
+	 *	Stats::values('requests');
+	 *	Stats::values('requests', 'bucket1');
+	 *	Stats::values('requests', array('bucket1', 'bucket2'));
+	 *	Stats::values('requests', array('user' => 'foo'));
+	 *	Stats::values('requests', array('user' => 'foo', 'year' => date('Y')));
 	 * }}}
 	 *
+	 * @see li3_redis\storage\Stats::get()
 	 * @see li3_redis\storage\Redis::getKey()
 	 * @param string $key redis key which identifies the hash
-	 * @param string|array $fields a string or an array of fields to retrieve
+	 * @param string|array $buckets an array of additional prefixes, can be a numerical indexed
+	 *        array with strings, or an associated array, in which the key and value will be glued
+	 *        together by a separater or just a string, for one additional prefix.
 	 * @param array $options array with additional options, see Redis::getKey()
-	 * @return mixed the value to be retrieved or an array of values
+	 * @return array all values for given key
 	 * @filter
 	 */
-	public static function values($key, $fields = '', array $options = array()) {
+	public static function values($key, $buckets = 'global', array $options = array()) {
 		$defaults = array('prefix' => 'global', 'namespace' => static::$namespace);
 		$options += $defaults;
-		$params = compact('key', 'fields', 'options');
+		$params = compact('key', 'buckets', 'options');
 		return static::_filter(__METHOD__, $params, function($self, $params) {
-			return Redis::readHash($params['key'], $params['fields'], $params['options']);
+			extract($params);
+			$result = array();
+
+			$buckets = (!is_array($buckets))? array($buckets) : $buckets;
+
+			foreach ($buckets as $prefix => $val) {
+				$options['prefix'] = (!is_numeric($prefix)) ? Redis::addPrefix($val, $prefix) : $val;
+				$result[$options['prefix']] = Redis::hashValues($key, $options);
+			}
+			return (count($result) > 1) ? $result : array_shift($result);
+		});
+	}
+
+	/**
+	 * returns sum of all values as flat array
+	 *
+	 * examples:
+	 *
+	 * {{{
+	 *	Stats::sum('requests');
+	 *	Stats::sum('requests', 'bucket1');
+	 *	Stats::sum('requests', array('bucket1', 'bucket2'));
+	 *	Stats::sum('requests', array('user' => 'foo'));
+	 *	Stats::sum('requests', array('user' => 'foo', 'year' => date('Y')));
+	 * }}}
+	 *
+	 * @see li3_redis\storage\Stats::get()
+	 * @see li3_redis\storage\Redis::getKey()
+	 * @param string $key redis key which identifies the hash
+	 * @param string|array $buckets an array of additional prefixes, can be a numerical indexed
+	 *        array with strings, or an associated array, in which the key and value will be glued
+	 *        together by a separater or just a string, for one additional prefix.
+	 * @param array $options array with additional options, see Redis::getKey()
+	 * @return integer|array sum of all values for given key
+	 * @filter
+	 */
+	public static function sum($key, $buckets = 'global', array $options = array()) {
+		$defaults = array('prefix' => 'global', 'namespace' => static::$namespace);
+		$options += $defaults;
+		$params = compact('key', 'buckets', 'options');
+		return static::_filter(__METHOD__, $params, function($self, $params) {
+			extract($params);
+			$result = array();
+
+			$buckets = (!is_array($buckets))? array($buckets) : $buckets;
+
+			foreach ($buckets as $prefix => $val) {
+				$options['prefix'] = (!is_numeric($prefix)) ? Redis::addPrefix($val, $prefix) : $val;
+				$result[$options['prefix']] = array_sum(Redis::hashValues($key, $options));
+			}
+			return (count($result) > 1) ? $result : array_shift($result);
 		});
 	}
 

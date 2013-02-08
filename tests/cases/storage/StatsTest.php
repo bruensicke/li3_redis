@@ -550,33 +550,49 @@ class StatsTest extends \lithium\test\Unit {
 		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:prefix2:foo"));
 
 		// simplest call
-		$expected = array('calls' => 140, 'fails' => 22);
-		$result = Stats::values('foo');
-		$this->assertEqual($expected, $result);
+		$this->assertEqual(array_values($data1), Stats::values('foo'));
 
 		// with one prefix
-		$expected = array('calls' => 35, 'fails' => 3);
-		$result = Stats::values('foo', '', array('prefix' => 'prefix1'));
-		$this->assertEqual($expected, $result);
+		$this->assertEqual(array_values($data2), Stats::values('foo', 'prefix1'));
 
-		// with one field
-		$expected = 140;
-		$result = Stats::values('foo', 'calls');
-		$this->assertEqual($expected, $result);
+		// with one prefix as array
+		$this->assertEqual(array_values($data3), Stats::values('foo', array('prefix2')));
 
-		// with one field and prefix
-		$expected = 35;
-		$result = Stats::values('foo', 'calls', array('prefix' => 'prefix1'));
-		$this->assertEqual($expected, $result);
+		// with two prefixes as flat array
+		$expected = array(
+			'global' => array_values($data1),
+			'prefix2' => array_values($data3),
+		);
+		$this->assertEqual($expected, Stats::values('foo', array('global', 'prefix2')));
+	}
 
-		// with no fields and prefix
-		$expected = array('calls' => 35, 'fails' => 3);
-		$result = Stats::values('foo', '', array('prefix' => 'prefix1'));
-		$this->assertEqual($expected, $result);
+	function testSum() {
+		$scope = __FUNCTION__;
+		Redis::config(array('format' => $scope));
+		$data1 = array('calls' => 140, 'fails' => 22);
+		$data2 = array('calls' => 35, 'fails' => 3);
+		$data3 = array('calls' => 17, 'fails' => 29);
+		$this->assertTrue($this->redis->hMset("$scope:stats:global:foo", $data1));
+		$this->assertTrue($this->redis->hMset("$scope:stats:prefix1:foo", $data2));
+		$this->assertTrue($this->redis->hMset("$scope:stats:prefix2:foo", $data3));
+		$this->assertEqual($data1, $this->redis->hGetAll("$scope:stats:global:foo"));
+		$this->assertEqual($data2, $this->redis->hGetAll("$scope:stats:prefix1:foo"));
+		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:prefix2:foo"));
 
-		// with no fields and prefix
-		$expected = array('calls' => 17, 'fails' => 29);
-		$result = Stats::values('foo', '', array('prefix' => 'prefix2'));
-		$this->assertEqual($expected, $result);
+		// simplest call
+		$this->assertEqual(array_sum(array_values($data1)), Stats::sum('foo'));
+
+		// with one prefix
+		$this->assertEqual(array_sum(array_values($data2)), Stats::sum('foo', 'prefix1'));
+
+		// with one prefix as array
+		$this->assertEqual(array_sum(array_values($data3)), Stats::sum('foo', array('prefix2')));
+
+		// with two prefixes as flat array
+		$expected = array(
+			'global' => array_sum(array_values($data1)),
+			'prefix2' => array_sum(array_values($data3)),
+		);
+		$this->assertEqual($expected, Stats::sum('foo', array('global', 'prefix2')));
 	}
 }
