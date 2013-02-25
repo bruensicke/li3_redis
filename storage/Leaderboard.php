@@ -34,7 +34,7 @@ class Leaderboard {
 	public $name; // public name
 	private $connection;
 	private $_namespace;
-	private $_page_size;
+	private $_page_size = 100;
 
 	public function __construct($name, array $options = array()) {
 		$defaults = array('namespace' => static::$namespace);
