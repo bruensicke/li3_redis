@@ -20,11 +20,6 @@ class StatsTest extends \lithium\test\Unit {
 
 	public function skip() {
 		$this->skipIf(!Redis::enabled(), 'The Redis extension is not loaded!');
-
-		$this->_connectionConfig = Connections::get('li3_redis', array('config' => true));
-		$hasDb = (isset($this->_connectionConfig['type']) && $this->_connectionConfig['type'] == 'Redis');
-		$message = 'Test database is either unavailable, or not a Redis connection!';
-		$this->skipIf(!$hasDb, $message);
 	}
 
 	public function setUp() {
@@ -32,6 +27,7 @@ class StatsTest extends \lithium\test\Unit {
 		$this->redis->connect('127.0.0.1', 6379);
 		$this->redis->select(1);
 		$this->redis->flushDB();
+		Redis::connection($this->redis);
 	}
 
 	public function tearDown() {
@@ -62,6 +58,12 @@ class StatsTest extends \lithium\test\Unit {
 		$expected = array('bar' => 2, 'baz' => 2);
 		$this->assertEqual(array('baz' => 2), Stats::inc('foo', 'baz'));
 		$this->assertEqual($expected, $this->redis->hGetAll("$scope:stats:global:foo"));
+
+		// multiple at once as flat array
+		// would be cool to have!
+		// $expected = array('field1' => 1, 'field2' => 1);
+		// $this->assertEqual($expected, Stats::inc('multiFlat', array('field1', 'field2')));
+		// $this->assertEqual($expected, $this->redis->hGetAll("$scope:stats:global:multiFlat"));
 
 		// multiple at once
 		$expected = array('field1' => 1, 'field2' => 1);

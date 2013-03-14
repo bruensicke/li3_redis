@@ -17,20 +17,16 @@ class RedisTest extends \lithium\test\Unit {
 
 	public $redis;
 
-	// public function skip() {
-	// 	$this->skipIf(!Redis::enabled(), 'The Redis extension is not loaded!');
-
-	// 	$this->_connectionConfig = Connections::get('li3_redis', array('config' => true));
-	// 	$hasDb = (isset($this->_connectionConfig['type']) && $this->_connectionConfig['type'] == 'Redis');
-	// 	$message = 'Test database is either unavailable, or not a Redis connection!';
-	// 	$this->skipIf(!$hasDb, $message);
-	// }
+	public function skip() {
+		$this->skipIf(!Redis::enabled(), 'The Redis extension is not loaded!');
+	}
 
 	public function setUp() {
 		$this->redis = new RedisCore();
 		$this->redis->connect('127.0.0.1', 6379);
 		$this->redis->select(1);
 		$this->redis->flushDB();
+		Redis::connection($this->redis);
 	}
 
 	public function tearDown() {

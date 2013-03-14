@@ -8,8 +8,8 @@
 
 namespace li3_redis\tests\cases\storage;
 
-use li3_redis\storage\Leaderboard;
 use li3_redis\storage\Redis;
+use li3_redis\storage\Leaderboard;
 
 use lithium\data\Connections;
 use Redis as RedisCore;
@@ -20,11 +20,6 @@ class LeaderboardTest extends \lithium\test\Unit {
 
 	public function skip() {
 		$this->skipIf(!Redis::enabled(), 'The Redis extension is not loaded!');
-
-		$this->_connectionConfig = Connections::get('li3_redis', array('config' => true));
-		$hasDb = (isset($this->_connectionConfig['type']) && $this->_connectionConfig['type'] == 'Redis');
-		$message = 'Test database is either unavailable, or not a Redis connection!';
-		$this->skipIf(!$hasDb, $message);
 	}
 
 	public function setUp() {
@@ -32,6 +27,7 @@ class LeaderboardTest extends \lithium\test\Unit {
 		$this->redis->connect('127.0.0.1', 6379);
 		$this->redis->select(1);
 		$this->redis->flushDB();
+		Redis::connection($this->redis);
 		$namespace = Leaderboard::$namespace;
 		$this->prefix = Redis::resolveFormat(null, compact('namespace')).':';
 	}

@@ -18,36 +18,15 @@ use ReflectionObject;
  */
 class RedisTest extends \lithium\test\Unit {
 
-	/**
-	 * Connection configuration.
-	 */
-	protected $_connectionConfig = array();
+	public function skip() {
+		$this->skipIf(!Redis::enabled(), 'The Redis extension is not loaded!');
+	}
 
-	/**
-	 * Connection to the database.
-	 */
-	public $connection = null;
-
-	/**
-	 * Skip the test if a Redis adapter configuration is unavailable.
-	 */
-	// public function skip() {
-	// 	$this->skipIf(!Redis::enabled(), 'The Redis extension is not loaded!');
-
-	// 	$this->_connectionConfig = Connections::get('li3_redis', array('config' => true));
-	// 	$hasDb = (isset($this->_connectionConfig['type']) && $this->_connectionConfig['type'] == 'Redis');
-	// 	$message = 'Test database is either unavailable, or not a Redis connection!';
-	// 	$this->skipIf(!$hasDb, $message);
-
-	// 	$this->connection = new Redis($this->_connectionConfig);
-	// 	$this->connection->select(1);
-	// }
-
-	// public function testEnabled() {
-	// 	$this->assertTrue(Redis::enabled());
-	// 	$this->assertTrue(Redis::enabled('transactions'));
-	// 	$this->assertFalse(Redis::enabled('relations'));
-	// }
+	public function testEnabled() {
+		$this->assertTrue(Redis::enabled());
+		$this->assertTrue(Redis::enabled('transactions'));
+		$this->assertFalse(Redis::enabled('relations'));
+	}
 
 	public function testDefaults() {
 		$expected = array(
@@ -69,14 +48,18 @@ class RedisTest extends \lithium\test\Unit {
 	}
 
 	public function testConnect() {
-		$result = new Redis($this->_connectionConfig);
+		$result = new Redis(array());
+		$this->assertTrue($result->isConnected());
+		$this->assertTrue(is_array($result->connection->config('GET', '*')));
+		$this->assertTrue(is_array($result->connection->info()));
+		$result = new Redis;
 		$this->assertTrue($result->isConnected());
 		$this->assertTrue(is_array($result->connection->config('GET', '*')));
 		$this->assertTrue(is_array($result->connection->info()));
 	}
 
 	public function testDisconnect() {
-		$redis = new Redis($this->_connectionConfig);
+		$redis = new Redis(array());
 		$this->assertTrue($redis->isConnected());
 		$this->assertTrue($redis->disconnect());
 		$this->assertFalse($redis->isConnected());
