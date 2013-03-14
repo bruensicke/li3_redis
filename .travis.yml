@@ -2,13 +2,15 @@ language: php
 php:
   - 5.3
   - 5.4
-before_script:
+before_install:
   # install phpredis extension.
   - wget -O phpredis.tar.gz --no-check-certificate https://github.com/nicolasff/phpredis/tarball/master
   - tar -xzf phpredis.tar.gz
   - sh -c "cd nicolasff-phpredis-* && phpize && ./configure && make && sudo make install"
-  - echo "extension=redis.so" > redis.ini && phpenv config-add redis.ini
-before_install:
+  # - echo "extension=redis.so" > redis.ini && phpenv config-add redis.ini
+  - echo "extension=redis.so" >> `php --ini | grep "Loaded Configuration" | sed -e "s|.*:\s*||"`
+before_script:
+  - php -m
   - cd ../
   - git clone git://github.com/UnionOfRAD/framework.git
   - cp -fr li3_redis/tests/data/connections.php framework/app/config/bootstrap/connections.php
