@@ -16,6 +16,6 @@ before_install:
   - cd phpredis-master/ && phpize && ./configure && make && make install
   - echo "extension=redis.so" > redis.ini && phpenv config-add redis.ini
   - cd ..
-  - echo "extension=/home/travis/build/bruensicke/framework/app/libraries/li3_redis/phpredis-2.2.2/modules/redis.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini
+  - echo "extension=/home/travis/build/bruensicke/framework/app/libraries/li3_redis/phpredis-master/modules/redis.so" >> ~/.phpenv/versions/$(phpenv version-name)/etc/php.ini
   - phpenv rehash
 script: ../../../libraries/lithium/console/li3 test tests
