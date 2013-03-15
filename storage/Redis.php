@@ -754,7 +754,8 @@ class Redis extends \lithium\core\StaticObject {
 	 *    Redis::listGet('inbox'); // return all elements of inbox
 	 *    Redis::listGet('inbox', 4); // return 4th element of inbox
 	 *    Redis::listGet('inbox', array(2, 5)); // return 2-5th element of inbox
-	 *    Redis::listGet('inbox', '6-11'); // return 6-11th element of inbox
+	 *    Redis::listGet('inbox', array(10)); // return all remaining items, starting from 10
+	 *    Redis::listGet('inbox', array(10, -1)); // same as above
 	 * }}}
 	 *
 	 * @see li3_redis\storage\Redis::getKey()
