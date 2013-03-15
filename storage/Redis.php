@@ -11,6 +11,7 @@ namespace li3_redis\storage;
 use lithium\core\Libraries;
 use lithium\core\Environment;
 use lithium\data\Connections;
+use lithium\util\Collection;
 use lithium\util\String;
 use lithium\util\Set;
 
@@ -691,6 +692,192 @@ class Redis extends \lithium\core\StaticObject {
 		$params = compact('key', 'options');
 		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
 			return $connection->hVals($self::getKey($params['key'], $params['options']));
+		});
+	}
+
+	/**
+	 * add value(s) to a list in redis
+	 *
+	 * {{{
+	 *    Redis::listAdd('inbox', 'foo');
+	 *    Redis::listAdd('inbox', array('foo', 'bar'));
+	 * }}}
+	 *
+	 * @see li3_redis\storage\Redis::getKey()
+	 * @param string $key The key to uniquely identify the item in redis
+	 * @param string|array $values a value to add to the list or an array thereof
+	 * @param array $options array with additional options, see Redis::getKey()
+	 *     - `check`: only, if list actually exists
+	 *     - `prepend`: add to left (top), instead of right (bottom)
+	 * @return integer number of items in list, after operation, false in case of errors
+	 * @filter
+	 */
+	public static function listAdd($key, $values, array $options = array()) {
+		$defaults = array('check' => false, 'prepend' => false);
+		$options += $defaults;
+		$connection = static::connection();
+		$params = compact('key', 'values', 'options');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			$direction = $params['options']['prepend'] ? 'l' : 'r';
+			$method = $params['options']['check'] ? "{$direction}Pushx" : "{$direction}Push";
+			$key = $self::getKey($params['key'], $params['options']);
+			switch (true) {
+				case is_object($params['values']):
+					if ($params['values'] instanceof \lithium\util\Collection) {
+						$data = $params['values']->to('array');
+						break;
+					}
+					$data = (string) $params['values'];
+					break;
+				case is_array($params['values']):
+				case is_scalar($params['values']):
+				default:
+					$data = $params['values'];
+			}
+			if (!$data) {
+				return false;
+			}
+			if (!is_array($data)) {
+				return $connection->$method($key, $data);
+			}
+			foreach ($data as $value) {
+				$result = $connection->$method($key, $value);
+			}
+			return $result;
+		});
+	}
+
+	/**
+	 * get value(s) from a list in redis
+	 *
+	 * {{{
+	 *    Redis::listGet('inbox'); // return all elements of inbox
+	 *    Redis::listGet('inbox', 4); // return 4th element of inbox
+	 *    Redis::listGet('inbox', array(2, 5)); // return 2-5th element of inbox
+	 *    Redis::listGet('inbox', '6-11'); // return 6-11th element of inbox
+	 * }}}
+	 *
+	 * @see li3_redis\storage\Redis::getKey()
+	 * @param string $key The key to uniquely identify the item in redis
+	 * @param integer|array $index index to fetch or a range
+	 * @param array $options array with additional options, see Redis::getKey()
+	 *     - `start`: on empty index, this start will be used
+	 *     - `end`: on empty index, this end will be used
+	 * @return array the values of all fields for given hash
+	 * @filter
+	 */
+	public static function listGet($key, $index = array(), array $options = array()) {
+		$defaults = array('start' => 0, 'end' => -1);
+		$options += $defaults;
+		$connection = static::connection();
+		$params = compact('key', 'index', 'options');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			extract($params);
+			$key = $self::getKey($params['key'], $params['options']);
+			if (is_int($index)) {
+				return $connection->lGet($key, $index);
+			}
+			if (empty($index)) {
+				$start = (integer) $options['start'];
+				$end = (integer) $options['end'];
+				return $connection->lRange($key, $start, $end);
+			}
+			if (is_array($index)) {
+				if (count($index) === 1) {
+					$index[] = (integer) $options['end'];
+				}
+				list($start, $end) = $index;
+				return $connection->lRange($key, (integer) $start, (integer) $end);
+			}
+		});
+	}
+
+	/**
+	 * Returns and removes the first|last element of the list.
+	 *
+	 * {{{
+	 *    Redis::listPop('incoming'); // gets first element from list `incoming`
+	 *    Redis::listPop('incoming', true); // gets first element from list `incoming` or waits until
+	 *                                      it is present in a blocking manner
+	 *    Redis::listPop('incoming', false, array('last' => true)); // gets last element from list
+	 * }}}
+	 *
+	 * @see li3_redis\storage\Redis::getKey()
+	 * @param string $key The key to uniquely identify the item in redis
+	 * @param boolean $blocking set to true, if you want to wait until an item appears in list
+	 * @param array $options array with additional options, see Redis::getKey()
+	 *     - `last`: set to true, if last element should be returned, defaults to false
+	 * @return bool|string the first|last element from the list, false if non-existent
+	 * @filter
+	 */
+	public static function listPop($key, $blocking = false, array $options = array()) {
+		$defaults = array('last' => false);
+		$options += $defaults;
+		$connection = static::connection();
+		$params = compact('key', 'blocking', 'options');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			$direction = $params['options']['last'] ? 'r' : 'l';
+			$method = $params['blocking'] ? "b{$direction}Pop" : "{$direction}Pop";
+			return $connection->$method($self::getKey($params['key'], $params['options']));
+		});
+	}
+
+	/**
+	 * sets a value (given by index) in a list with a certain value
+	 *
+	 * {{{
+	 *    Redis::listSet('inbox', 3, 'wuff'); // sets item at index `3` to `wuff`
+	 *    Redis::listSet('inbox', array(3 => 'wuff')); // same as above
+	 *    Redis::listSet('inbox', array(3 => 'wuff', 6 => 'bark')); // set multiple values at once
+	 * }}}
+	 *
+	 * @see li3_redis\storage\Redis::listGet()
+	 * @see li3_redis\storage\Redis::getKey()
+	 * @param string $key The key to uniquely identify the item in redis
+	 * @param integer|array $index index to replace or an array with index and their value
+	 * @param mixed $value value to be set on given index
+	 * @param array $options array with additional options, see Redis::getKey()
+	 * @return bool|array returns true on success, false otherwise - if multiple values are set an
+	 *         array with a key for each index and their corresponding return-value is returned
+	 * @filter
+	 */
+	public static function listSet($key, $index, $value = null, array $options = array()) {
+		$connection = static::connection();
+		$params = compact('key', 'index', 'value', 'options');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			$key = $self::getKey($params['key'], $params['options']);
+			if (is_int($params['index']) && isset($params['value'])) {
+				return $connection->lSet($key, $params['index'], $params['value']);
+			}
+			if (is_array($params['index'])) {
+				$result = array();
+				foreach ($params['index'] as $idx => $val) {
+					$result[$idx] = $connection->lSet($key, $idx, $val);
+				}
+				return $result;
+			}
+			return false;
+		});
+	}
+
+	/**
+	 * get amount of items within a list from redis
+	 *
+	 * {{{
+	 *    Redis::listLength('key');
+	 * }}}
+	 *
+	 * @see li3_redis\storage\Redis::getKey()
+	 * @param string $key The key to uniquely identify the item in redis
+	 * @param array $options array with additional options, see Redis::getKey()
+	 * @return integer|boolean the number of values in that list, false if key does not exist
+	 * @filter
+	 */
+	public static function listLength($key, array $options = array()) {
+		$connection = static::connection();
+		$params = compact('key', 'options');
+		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
+			return $connection->lLen($self::getKey($params['key'], $params['options']));
 		});
 	}
 
