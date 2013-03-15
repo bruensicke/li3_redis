@@ -11,7 +11,6 @@ namespace li3_redis\tests\cases\storage;
 use li3_redis\storage\Redis;
 use li3_redis\storage\Leaderboard;
 
-use lithium\data\Connections;
 use Redis as RedisCore;
 
 class LeaderboardTest extends \lithium\test\Unit {

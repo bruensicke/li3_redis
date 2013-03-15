@@ -10,7 +10,6 @@ namespace li3_redis\tests\cases\storage;
 
 use li3_redis\storage\Redis;
 
-use lithium\data\Connections;
 use Redis as RedisCore;
 
 class RedisTest extends \lithium\test\Unit {
