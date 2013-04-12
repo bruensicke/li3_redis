@@ -1,5 +1,6 @@
 # li3_redis
 
+<img src="https://travis-ci.org/bruensicke/li3_redis.png?branch=master" align="right" />
 redis made ready for lithium
 
 ## Requirements
