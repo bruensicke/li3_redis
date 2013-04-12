@@ -9,7 +9,6 @@
 namespace li3_redis\storage;
 
 use li3_redis\storage\Redis;
-use lithium\core\Libraries;
 
 /**
  * Stats allow easy counting of metrics and application-specific events.
