@@ -85,7 +85,7 @@ class LeaderboardTest extends \lithium\test\Unit {
 		}
 
 		$this->assertEqual(2, $leaderboard->totalPages());
-		$leaderboard->setPageSize(10);
+		$leaderboard->setPageSize(50);
 		$this->assertEqual(3, $leaderboard->totalPages());
 	}
 
@@ -126,8 +126,8 @@ class LeaderboardTest extends \lithium\test\Unit {
 			$leaderboard->addMember("member_{$i}", $i);
 		}
 
-		$this->assertEqual(26, $leaderboard->rankFor('member_1'));
-		$this->assertEqual(25, $leaderboard->rankFor('member_1', true));
+		$this->assertEqual(101, $leaderboard->rankFor('member_1'));
+		$this->assertEqual(100, $leaderboard->rankFor('member_1', true));
 	}
 
 	function testScoreFor() {
@@ -137,6 +137,8 @@ class LeaderboardTest extends \lithium\test\Unit {
 		}
 
 		$this->assertEqual(14, $leaderboard->scoreFor('member_14'));
+		$this->assertEqual(33, $leaderboard->scoreFor('member_33'));
+		$this->assertEqual(100, $leaderboard->scoreFor('member_100'));
 	}
 
 	function testScoreAndRankFor() {
@@ -183,15 +185,15 @@ class LeaderboardTest extends \lithium\test\Unit {
 
 		$leaders = $leaderboard->leaders(1);
 		$this->assertEqual(Leaderboard::DEFAULT_PAGE_SIZE, count($leaders));
-		$this->assertEqual('member_26', $leaders[0]['member']);
-		$this->assertEqual(26, $leaders[0]['score']);
+		$this->assertEqual('member_101', $leaders[0]['member']);
+		$this->assertEqual(101, $leaders[0]['score']);
 		$this->assertEqual(1, $leaders[0]['rank']);
 
 		$leaders = $leaderboard->leaders(2);
 		$this->assertEqual(1, count($leaders));
 		$this->assertEqual('member_1', $leaders[0]['member']);
 		$this->assertEqual(1, $leaders[0]['score']);
-		$this->assertEqual(26, $leaders[0]['rank']);
+		$this->assertEqual(101, $leaders[0]['rank']);
 	}
 
 	function testAroundMe() {
@@ -202,7 +204,7 @@ class LeaderboardTest extends \lithium\test\Unit {
 
 		$this->assertEqual(Leaderboard::DEFAULT_PAGE_SIZE * 3 + 1, $leaderboard->totalMembers());
 
-		$leadersAroundMe = $leaderboard->aroundMe('member_30');
+		$leadersAroundMe = $leaderboard->aroundMe('member_50');
 		$this->assertEqual(Leaderboard::DEFAULT_PAGE_SIZE / 2, count($leadersAroundMe) / 2);
 
 		$leadersAroundMe = $leaderboard->aroundMe('member_1');
@@ -224,13 +226,13 @@ class LeaderboardTest extends \lithium\test\Unit {
 
 		$this->assertEqual(3, count($rankedMembers));
 
-		$this->assertEqual(25, $rankedMembers[0]['rank']);
+		$this->assertEqual(100, $rankedMembers[0]['rank']);
 		$this->assertEqual(1, $rankedMembers[0]['score']);
 
-		$this->assertEqual(21, $rankedMembers[1]['rank']);
+		$this->assertEqual(96, $rankedMembers[1]['rank']);
 		$this->assertEqual(5, $rankedMembers[1]['score']);
 
-		$this->assertEqual(16, $rankedMembers[2]['rank']);
+		$this->assertEqual(91, $rankedMembers[2]['rank']);
 		$this->assertEqual(10, $rankedMembers[2]['score']);
 	}
 }
