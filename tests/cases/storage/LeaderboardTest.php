@@ -50,10 +50,12 @@ class LeaderboardTest extends \lithium\test\Unit {
 	}
 
 	function testAddMember() {
+		$scope = __FUNCTION__;
+		Redis::config(array('format' => $scope));
 		$leaderboard = new Leaderboard('leaderboard');
 		$leaderboard->removeMember('david');
 		$this->assertEqual(1, $leaderboard->addMember('david', 69));
-		$this->assertEqual(1, $this->redis->zSize($this->prefix.'leaderboard'));
+		$this->assertEqual(1, $this->redis->zSize($scope.':'.$this->prefix.'leaderboard'));
 	}
 
 	function testRemoveMember() {
