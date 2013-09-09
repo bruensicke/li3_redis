@@ -38,11 +38,11 @@ i want to address the following topics. If you need something or can share somet
 
 - create redis datasource (done)
 - use Connection class to define connections (done)
-- fix failing unit-tests
+- fix failing unit-tests (done)
 - convert leaderboard class to use lithium standards `_init()` etc. (partly done)
 - use Redis class as utility class for Leaderboard (done)
 - auto-add/remove namespace formats to include environments or other variables in keys (done)
-- add stats class
+- add stats class (done)
 - add stats command
 - add points / score class
 - add user messaging system
