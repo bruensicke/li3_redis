@@ -130,7 +130,7 @@ class Lists extends \lithium\core\StaticObject {
 				if (!$options['merge']) {
 					$data[$options['prefix']] = $row;
 				} else {
-					$data = array_merge($data, $row);
+					$data = array_merge($data, (array) $row);
 				}
 			}
 			return ($options['collect']) ? new Collection(compact('data')) : $data;
