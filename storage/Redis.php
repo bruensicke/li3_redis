@@ -999,7 +999,7 @@ class Redis extends \lithium\core\StaticObject {
 	 *              should expire, or a Unix timestamp.
 	 * @return boolean Returns `true` if expiry could be set for the given key, `false` otherwise.
 	 */
-	protected static function _ttl($key, $expiry) {
+	public static function _ttl($key, $expiry) {
 		if (is_array($key)) {
 			$result = array();
 			foreach ($key as $k) {
