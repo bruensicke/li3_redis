@@ -421,7 +421,7 @@ class Redis extends \lithium\core\StaticObject {
 						break;
 					default:
 						$connection->hSet($key, $field, $val);
-						$result[$field] = $connection->hGet($key, $field);
+						$result[$field] = $val;
 						break;
 				}
 			}
