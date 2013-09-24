@@ -101,6 +101,22 @@ class Redis extends \lithium\data\Source {
 		return call_user_func_array(array(&$this->connection, $method), $params);
 	}
 
+	public function hGet($key, $hashKey) {
+		return $this->connection->{__FUNCTION__}($key, $hashKey);
+	}
+
+	public function hGetAll($key) {
+		return $this->connection->{__FUNCTION__}($key);
+	}
+
+	public function hIncrBy($key, $member, $value) {
+		return $this->connection->{__FUNCTION__}($key, $member, $value);
+	}
+
+	public function hMset($key, $members) {
+		return $this->connection->{__FUNCTION__}($key, $members);
+	}
+
 	/**
 	 *
 	 */
