@@ -520,24 +520,30 @@ class Redis extends \lithium\core\StaticObject {
 	 * @param string $key The key to uniquely identify the redis hash
 	 * @param array $values The values to be stored in redis as Hashmap
 	 * @param array $options array with additional options, see Redis::getKey()
+	 *     - `return`: If set to true, returns all hash values of updated `key`
 	 *     - `expiry`: A strtotime() compatible redis time. If no expiry time is set,
 	 *        then the default redis expiration time set with the redis configuration will be used.
-	 * @return array the updated values of all Hash fields stored in redis for given key
+	 * @return array|boolean the updated values of all Hash fields stored in redis for given key
+	 *         or boolean value about success, depending on option `return`.
 	 * @filter
 	 */
 	public static function writeHash($key, array $values = array(), array $options = array()) {
 		$connection = static::connection();
-		$defaults = array('expiry' => static::$_config['expiry']);
+		$defaults = array('expiry' => static::$_config['expiry'], 'return' => false);
 		$options += $defaults;
 		$params = compact('key', 'values', 'options');
 		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
 			$key = $self::getKey($params['key'], $params['options']);
-			if ($success = $connection->hMset($key, $params['values'])) {
-				if ($params['options']['expiry']) {
-					$self::_ttl($key, $params['options']['expiry']);
-				}
-				return $self::readHash($params['key'], '', $params['options']);
+			if (!$connection->hMset($key, $params['values'])) {
+				return false;
 			}
+			if ($params['options']['expiry']) {
+				$self::_ttl($key, $params['options']['expiry']);
+			}
+
+			return ($params['options']['return'])
+				? $self::readHash($params['key'], '', $params['options'])
+				: true;
 		});
 	}
 
