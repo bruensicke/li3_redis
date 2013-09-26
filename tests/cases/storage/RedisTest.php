@@ -57,8 +57,8 @@ class RedisTest extends \lithium\test\Unit {
 		$this->assertEqual('val2', $this->redis->get("$scope:key2"));
 		$expected = array('key1' => true, 'key2' => false);
 		$this->assertEqual($expected, Redis::write(array('key1' => true, 'key2' => false)));
-		$this->assertTrue($this->redis->get("$scope:key1"));
-		$this->assertFalse($this->redis->get("$scope:key2"));
+		$this->assertEqual(1, $this->redis->get("$scope:key1"));
+		$this->assertEqual(null, $this->redis->get("$scope:key2"));
 	}
 
 	function testIncrementHash() {
@@ -134,12 +134,12 @@ class RedisTest extends \lithium\test\Unit {
 		$scope = __FUNCTION__;
 		Redis::config(array('format' => $scope));
 		$this->assertEqual('test', $this->redis->set("$scope:bar", 'test'));
-		$this->assertTrue(Redis::delete('bar'));
+		$this->assertEqual(1, Redis::delete('bar'));
 		$this->assertEqual(1, $this->redis->incr("$scope:baz"));
-		$this->assertTrue(Redis::delete('baz'));
-		$this->assertFalse(Redis::delete('non-existent'));
+		$this->assertEqual(1, Redis::delete('baz'));
+		$this->assertEqual(0, Redis::delete('non-existent'));
 		$this->assertTrue($this->redis->hMset("$scope:foo", array('name' => 'Joe', 'salary' => 2000)));
-		$this->assertTrue(Redis::delete('foo'));
+		$this->assertEqual(1, Redis::delete('foo'));
 	}
 
 	function testDeleteFromHash() {
@@ -148,7 +148,7 @@ class RedisTest extends \lithium\test\Unit {
 		$this->assertTrue($this->redis->hMset("$scope:foo", array('name' => 'Joe', 'salary' => 2000)));
 		$this->assertTrue($this->redis->hExists("$scope:foo", 'name'));
 		$this->assertTrue($this->redis->hExists("$scope:foo", 'salary'));
-		$this->assertTrue(Redis::deleteFromHash('foo', 'name'));
+		$this->assertEqual(1, Redis::deleteFromHash('foo', 'name'));
 		$this->assertFalse($this->redis->hExists("$scope:foo", 'name'));
 		$this->assertTrue($this->redis->hExists("$scope:foo", 'salary'));
 		$this->assertTrue($this->redis->hMset("$scope:foo", array('name' => 'Joe', 'salary' => 2000)));

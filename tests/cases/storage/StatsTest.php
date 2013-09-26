@@ -77,7 +77,7 @@ class StatsTest extends \lithium\test\Unit {
 		// multiple at once, with plain bucket
 		$expected = array('field1' => 1, 'field2' => 1);
 		$this->assertEqual($expected, Stats::inc('withBucket', $expected, 'prefix'));
-		$this->assertFalse($this->redis->hGetAll("$scope:stats:global:withBucket"));
+		$this->assertEqual(array(), $this->redis->hGetAll("$scope:stats:global:withBucket"));
 		$this->assertEqual($expected, $this->redis->hGetAll("$scope:stats:prefix:withBucket"));
 
 		// multiple buckets at once
@@ -87,14 +87,14 @@ class StatsTest extends \lithium\test\Unit {
 			'prefix2' => $data,
 		);
 		$this->assertEqual($expected, Stats::inc('multiBucket', $data, array('prefix1', 'prefix2')));
-		$this->assertFalse($this->redis->hGetAll("$scope:stats:global:multiBucket"));
+		$this->assertEqual(array(), $this->redis->hGetAll("$scope:stats:global:multiBucket"));
 		$this->assertEqual($data, $this->redis->hGetAll("$scope:stats:prefix1:multiBucket"));
 		$this->assertEqual($data, $this->redis->hGetAll("$scope:stats:prefix2:multiBucket"));
 
 		// multiple at once, with one bucket in array
 		$expected = array('field1' => 1, 'field2' => 1);
 		$this->assertEqual($expected, Stats::inc('withBucketArray', $expected, array('user' => 'foo')));
-		$this->assertFalse($this->redis->hGetAll("$scope:stats:global:withBucketArray"));
+		$this->assertEqual(array(), $this->redis->hGetAll("$scope:stats:global:withBucketArray"));
 		$this->assertEqual($expected, $this->redis->hGetAll("$scope:stats:user:foo:withBucketArray"));
 
 		// multiple buckets as associated array
@@ -104,7 +104,7 @@ class StatsTest extends \lithium\test\Unit {
 			'year:2013' => $data,
 		);
 		$this->assertEqual($expected, Stats::inc('multiBucketArray', $data, array('user' => 'foo', 'year' => '2013')));
-		$this->assertFalse($this->redis->hGetAll("$scope:stats:global:multiBucketArray"));
+		$this->assertEqual(array(), $this->redis->hGetAll("$scope:stats:global:multiBucketArray"));
 		$this->assertEqual($data, $this->redis->hGetAll("$scope:stats:user:foo:multiBucketArray"));
 		$this->assertEqual($data, $this->redis->hGetAll("$scope:stats:year:2013:multiBucketArray"));
 
@@ -260,7 +260,7 @@ class StatsTest extends \lithium\test\Unit {
 		// delete key
 		$result = Stats::delete('foo');
 		$this->assertEqual(1, $result);
-		$this->assertFalse($this->redis->hGetAll("$scope:stats:global:foo"));
+		$this->assertEqual(array(), $this->redis->hGetAll("$scope:stats:global:foo"));
 		$this->assertEqual($data2, $this->redis->hGetAll("$scope:stats:prefix1:foo"));
 		$this->assertEqual($data3, $this->redis->hGetAll("$scope:stats:prefix2:foo"));
 	}
@@ -330,13 +330,13 @@ class StatsTest extends \lithium\test\Unit {
 		// multiple at once, with plain bucket
 		$expected = array('field1' => 1, 'field2' => 1);
 		$this->assertEqual($expected, Stats::set('withBucket', $expected, 'prefix'));
-		$this->assertFalse($this->redis->hGetAll("$scope:stats:global:withBucket"));
+		$this->assertEqual(array(), $this->redis->hGetAll("$scope:stats:global:withBucket"));
 		$this->assertEqual($expected, $this->redis->hGetAll("$scope:stats:prefix:withBucket"));
 
 		// multiple at once, with plain bucket, again (no inc?)
 		$expected = array('field1' => 1, 'field2' => 1);
 		$this->assertEqual($expected, Stats::set('withBucket', $expected, 'prefix'));
-		$this->assertFalse($this->redis->hGetAll("$scope:stats:global:withBucket"));
+		$this->assertEqual(array(), $this->redis->hGetAll("$scope:stats:global:withBucket"));
 		$this->assertEqual($expected, $this->redis->hGetAll("$scope:stats:prefix:withBucket"));
 
 		// multiple buckets at once
@@ -346,14 +346,14 @@ class StatsTest extends \lithium\test\Unit {
 			'prefix2' => $data,
 		);
 		$this->assertEqual($expected, Stats::set('multiBucket', $data, array('prefix1', 'prefix2')));
-		$this->assertFalse($this->redis->hGetAll("$scope:stats:global:multiBucket"));
+		$this->assertEqual(array(), $this->redis->hGetAll("$scope:stats:global:multiBucket"));
 		$this->assertEqual($data, $this->redis->hGetAll("$scope:stats:prefix1:multiBucket"));
 		$this->assertEqual($data, $this->redis->hGetAll("$scope:stats:prefix2:multiBucket"));
 
 		// multiple at once, with one bucket in array
 		$expected = array('field1' => 2, 'field2' => 2);
 		$this->assertEqual($expected, Stats::set('withBucketArray', $expected, array('user' => 'foo')));
-		$this->assertFalse($this->redis->hGetAll("$scope:stats:global:withBucketArray"));
+		$this->assertEqual(array(), $this->redis->hGetAll("$scope:stats:global:withBucketArray"));
 		$this->assertEqual($expected, $this->redis->hGetAll("$scope:stats:user:foo:withBucketArray"));
 
 		// multiple buckets as associated array
@@ -363,7 +363,7 @@ class StatsTest extends \lithium\test\Unit {
 			'year:2013' => $data,
 		);
 		$this->assertEqual($expected, Stats::set('multiBucketArray', $data, array('user' => 'foo', 'year' => '2013')));
-		$this->assertFalse($this->redis->hGetAll("$scope:stats:global:multiBucketArray"));
+		$this->assertEqual(array(), $this->redis->hGetAll("$scope:stats:global:multiBucketArray"));
 		$this->assertEqual($data, $this->redis->hGetAll("$scope:stats:user:foo:multiBucketArray"));
 		$this->assertEqual($data, $this->redis->hGetAll("$scope:stats:year:2013:multiBucketArray"));
 

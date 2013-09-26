@@ -24,8 +24,11 @@ class RedisTest extends \lithium\test\Unit {
 
 	public function testEnabled() {
 		$this->assertTrue(Redis::enabled());
+		$this->assertTrue(Redis::enabled('arrays'));
 		$this->assertTrue(Redis::enabled('transactions'));
-		$this->assertFalse(Redis::enabled('relations'));
+		$this->assertFalse(Redis::enabled('relationships'));
+		$this->assertFalse(Redis::enabled('schema'));
+		$this->assertFalse(Redis::enabled('booleans'));
 	}
 
 	public function testDefaults() {
