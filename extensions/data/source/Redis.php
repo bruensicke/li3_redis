@@ -46,8 +46,9 @@ class Redis extends \lithium\data\Source {
 		$features = array(
 			'arrays' => true,
 			'transactions' => true,
-			'booleans' => true,
-			'relationships' => false
+			'booleans' => false,
+			'relationships' => false,
+			'schema' => false,
 		);
 		return isset($features[$feature]) ? $features[$feature] : null;
 	}
