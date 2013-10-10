@@ -73,9 +73,13 @@ class Redis extends \lithium\data\Source {
 			if (!empty($config['password'])) {
 				$this->connection->auth($config['password']);
 			}
-			$conn = $this->connection->$method($host, $port, $config['timeout']);
-			if($conn === false) {
+			$tries = 3;
+			while(!$conn = $this->connection->$method($host, $port, $config['timeout'])) {
 				sysmsg(2110000503, 'Could not connect to redis', '(p)connect returned false');
+				$tries -= 1;
+				if($tries < 1) {
+					sysmsg(5110001503, 'Could not connect to redis', '3 connects failed');
+				}
 			}
 			if (!empty($config['database'])) {
 				$this->connection->select($config['database']);
