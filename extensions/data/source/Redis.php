@@ -87,9 +87,9 @@ class Redis extends \lithium\data\Source {
 		$method = $persistent ? 'pconnect' : 'connect';
 
 		try {
+
 			if (is_array($host)) {
 				$this->connection = new RedisArray($host, $this->_config);
-				$r = $this->connection->_hosts();
 			} else {
 				$this->connection = new RedisCore;
 				if (!empty($password)) {
@@ -110,6 +110,7 @@ class Redis extends \lithium\data\Source {
 		} catch (RedisException $e) {
 			throw new NetworkException("Could not connect to the database.", 503, $e);
 		}
+
 		return $this->_isConnected = true;
 	}
 
