@@ -624,17 +624,17 @@ class Redis extends \lithium\core\StaticObject {
 		$params = compact('key', 'fields', 'options');
 		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
 			$key = $self::getKey($params['key'], $params['options']);
-			if (!empty($params['fields'])) {
-				$fields = (!is_array($params['fields']))
-					? array($params['fields'])
-					: $params['fields'];
-				$result = array();
-				foreach((array) $fields as $field) {
-					$result[$field] = $connection->hGet($key, $field);
-				}
-				return (count($result) === 1) ? $result[$field] : $result;
+			if (empty($params['fields'])) {
+				return $connection->hGetAll($key);
 			}
-			return $connection->hGetAll($key);
+			$fields = (!is_array($params['fields']))
+				? array($params['fields'])
+				: $params['fields'];
+			$result = array();
+			foreach((array) $fields as $field) {
+				$result[$field] = $connection->hGet($key, $field);
+			}
+			return (count((array) $fields) === 1) ? $result[$field] : $result;
 		});
 	}
 
