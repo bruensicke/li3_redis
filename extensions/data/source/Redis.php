@@ -8,12 +8,32 @@
 
 namespace li3_redis\extensions\data\source;
 
-use Exception;
+use RedisArray;
 use Redis as RedisCore;
+use RedisException;
 use lithium\core\NetworkException;
+
+use ReflectionExtension;
 
 /**
  * A data source adapter which allows you to connect to the Redis database engine.
+ *
+ * It allows connecting to a RedisCluster if you specify `host` param as array.
+ * This has a lot of implications, you can read up here:
+ * https://github.com/nicolasff/phpredis/blob/master/arrays.markdown#readme
+ *
+ * Please note: databases are not supported by RedisArray, so you have to work with
+ * database 0, then.
+ *
+ * For convienience here is an example distributor function:
+ *
+ * function($key) use ($config) {
+ *	  $number_of_hosts = count($config['host']);
+ *	  $md5 = substr(md5($key), -4);
+ *	  $hash_number = base_convert($md5, 16, 10);
+ *	  return ($hash_number % $number_of_hosts);
+ * }
+ *
  */
 class Redis extends \lithium\data\Source {
 
@@ -22,12 +42,16 @@ class Redis extends \lithium\data\Source {
 	 */
 	public function __construct(array $config = array()) {
 		$defaults = array(
-			'host'       => 'localhost',
-			'port'       => '6379',
-			'timeout'    => '3',
-			'password'   => null,
-			'database'   => null,
-			'persistent' => false
+			'host'             => 'localhost',
+			'port'             => '6379',
+			'timeout'          => 3,
+			'retry_interval'   => 100,
+			'persistent'       => false,
+			'persistent_id'    => null,
+			'retries'          => null,
+			'password'         => null,
+			'database'         => null,
+			'lazy_connect'     => true,
 		);
 		parent::__construct($config + $defaults);
 	}
@@ -57,38 +81,34 @@ class Redis extends \lithium\data\Source {
 	 *
 	 */
 	public function connect() {
-		$config = $this->_config;
+		extract($this->_config);
 		$this->_isConnected = false;
 
-		if (stristr(':', $config['host'])) {
-			list($host, $port) = explode(':', $config['host']);
-		} else {
-			$host = $config['host'];
-			$port = $config['port'];
-		}
-		$method = $config['persistent'] ? 'pconnect' : 'connect';
+		$method = $persistent ? 'pconnect' : 'connect';
 
 		try {
-			$this->connection = new RedisCore();
-			if (!empty($config['password'])) {
-				$this->connection->auth($config['password']);
-			}
-			$tries = 3;
-			$conn = $this->connection->$method($host, $port, $config['timeout']);
-			while($conn === false) {
-				$tries -= 1;
-				if($tries < 1) {
-					sysmsg(5110001503, 'Could not connect to redis', '3 connects failed', array(), array('stats' => false));
+
+			if (is_array($host)) {
+				$this->connection = new RedisArray($host, $this->_config);
+			} else {
+				$this->connection = new RedisCore;
+				if (!empty($password)) {
+					$this->connection->auth($password);
 				}
-				sysmsg(2110000503, 'Could not connect to redis', '(p)connect returned false', array(), array('stats' => false));
-				$conn = $this->connection->$method($host, $port, $config['timeout']);
+				$extension = new ReflectionExtension('redis');
+				$con = (version_compare($extension->getVersion(), '2.2.4') >= 0)
+					? $this->connection->$method($host, $port, $timeout, $persistent_id, $retry_interval)
+					: $this->connection->$method($host, $port, $timeout);
+				if (!$con) {
+					return false;
+				}
+				if (!empty($database)) {
+					$this->connection->select($database);
+				}
 			}
-			if (!empty($config['database'])) {
-				$this->connection->select($config['database']);
-			}
-		} catch(Exception $e) {
-			throw new NetworkException("Could not connect to the database: " . $e->getMessage(), 503);
-			return false;
+
+		} catch (RedisException $e) {
+			throw new NetworkException("Could not connect to the database.", 503, $e);
 		}
 
 		return $this->_isConnected = true;
