@@ -99,7 +99,7 @@ class Redis extends \lithium\data\Source {
 				$con = (version_compare($extension->getVersion(), '2.2.4') >= 0)
 					? $this->connection->$method($host, $port, $timeout, $persistent_id, $retry_interval)
 					: $this->connection->$method($host, $port, $timeout);
-				if ($con) {
+				if (!$con) {
 					return false;
 				}
 				if (!empty($database)) {
