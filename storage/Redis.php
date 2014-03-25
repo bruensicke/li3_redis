@@ -146,17 +146,6 @@ class Redis extends \lithium\core\StaticObject {
 	public static $connection;
 
 	/**
-	 * Sets default connection options.
-	 *
-	 * @see li3_redis\storage\Redis::config()
-	 * @param array $options
-	 * @return void
-	 */
-	public static function __init() {
-		static::config();
-	}
-
-	/**
 	 * Configures the redis backend for use as well as some application specific things.
 	 *
 	 * This method is called by `Redis::__init()`.
