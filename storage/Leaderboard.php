@@ -203,10 +203,6 @@ class Leaderboard {
 			$currentPage = 1;
 		}
 
-		if ($currentPage > $this->totalPagesIn($name)) {
-			$currentPage = $this->totalPagesIn($name);
-		}
-
 		$indexForRedis = $currentPage - 1;
 
 		$startingOffset = ($indexForRedis * $this->_page_size);
