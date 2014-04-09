@@ -33,14 +33,18 @@ class RedisTest extends \lithium\test\Unit {
 
 	public function testDefaults() {
 		$expected = array(
-			'init'       => false,
-			'host'       => 'localhost',
-			'port'       => '6379',
-			'timeout'    => '3',
-			'password'   => null,
-			'database'   => null,
-			'persistent' => false,
-			'autoConnect' => true,
+			'init'             => false,
+			'host'             => 'localhost',
+			'port'             => '6379',
+			'timeout'          => 3,
+			'retry_interval'   => 100,
+			'persistent'       => false,
+			'persistent_id'    => null,
+			'retries'          => null,
+			'password'         => null,
+			'database'         => null,
+			'lazy_connect'     => true,
+			'autoConnect'      => true,
 		);
 		$redis = new Redis(array('init' => false));
 		$reflection = new ReflectionObject($redis);

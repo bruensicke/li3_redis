@@ -194,7 +194,7 @@ class Leaderboard {
 		return $this->connection->zRemRangeByScore($this->getKey($name), $minScore, $maxScore);
 	}
 
-	public function leaders($currentPage, $withScores = true, $withRank = true, $useZeroIndexForRank = false) {
+	public function leaders($currentPage = 1, $withScores = true, $withRank = true, $useZeroIndexForRank = false) {
 		return $this->leadersIn($this->name, $currentPage, $withScores, $withRank, $useZeroIndexForRank);
 	}
 
