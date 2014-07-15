@@ -108,7 +108,6 @@ class Redis extends \lithium\data\Source {
 			}
 
 		} catch (RedisException $e) {
-            var_dump($e); die();
 			throw new NetworkException("Could not connect to the database.", 503, $e);
 		}
 
