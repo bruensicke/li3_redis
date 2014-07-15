@@ -92,9 +92,6 @@ class Redis extends \lithium\data\Source {
 				$this->connection = new RedisArray($host, $this->_config);
 			} else {
 				$this->connection = new RedisCore;
-				if (!empty($password)) {
-					$this->connection->auth($password);
-				}
 				$extension = new ReflectionExtension('redis');
 				$con = (version_compare($extension->getVersion(), '2.2.4') >= 0)
 					? $this->connection->$method($host, $port, $timeout, $persistent_id, $retry_interval)
@@ -102,12 +99,16 @@ class Redis extends \lithium\data\Source {
 				if (!$con) {
 					return false;
 				}
+				if (!empty($password)) {
+					$this->connection->auth($password);
+				}
 				if (!empty($database)) {
 					$this->connection->select($database);
 				}
 			}
 
 		} catch (RedisException $e) {
+            var_dump($e); die();
 			throw new NetworkException("Could not connect to the database.", 503, $e);
 		}
 
