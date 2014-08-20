@@ -203,10 +203,6 @@ class Leaderboard {
 			$currentPage = 1;
 		}
 
-		if ($currentPage > $this->totalPagesIn($name)) {
-			$currentPage = $this->totalPagesIn($name);
-		}
-
 		$indexForRedis = $currentPage - 1;
 
 		$startingOffset = ($indexForRedis * $this->_page_size);
@@ -231,7 +227,7 @@ class Leaderboard {
 	public function aroundMeIn($name, $member, $withScores = true, $withRank = true, $useZeroIndexForRank = false) {
 		$reverseRankForMember = $this->connection->zRevRank($this->getKey($name), $member);
 
-		$startingOffset = $reverseRankForMember - ($this->_page_size / 2);
+		$startingOffset = ceil($reverseRankForMember - ($this->_page_size / 2));
 		if ($startingOffset < 0) {
 			$startingOffset = 0;
 		}
