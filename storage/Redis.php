@@ -344,7 +344,7 @@ class Redis extends \lithium\core\StaticObject {
 			if (is_array($params['value'])) {
 				return $self::invokeMethod('writeHash', array_values($params));
 			}
-			if ($result = $connection->set($key, $params['value'])) {
+			if ($result = $connection->set($key, $params['value'], $params['options'])) {
 				if ($params['options']['expiry']) {
 					$self::_ttl($key, $params['options']['expiry']);
 				}
