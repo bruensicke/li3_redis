@@ -979,6 +979,9 @@ class Redis extends \lithium\core\StaticObject {
 		$params = compact('key', 'offset', 'options');
 		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
 			$key = $self::getKey($params['key'], $params['options']);
+			if ($params['options']['expiry']) {
+				$self::_ttl($key, $params['options']['expiry']);
+			}
 			return $connection->incr($key, $params['offset']);
 		});
 	}
