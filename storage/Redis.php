@@ -384,6 +384,7 @@ class Redis extends \lithium\core\StaticObject {
 	 * @param string $key The key to uniquely identify the redis hash
 	 * @param array $values The values to be incremented in redis hashmap
 	 * @param array $options array with additional options, see Redis::getKey()
+	 *     - `method`: Which method to increment, possible options are `hIncrBy` and `hIncrByFloat`.
 	 *     - `expiry`: A strtotime() compatible redis time. If no expiry time is set,
 	 *        then the default redis expiration time set with the redis configuration will be used.
 	 * @return array the updated values of all Hash fields stored in redis for given key
@@ -391,7 +392,7 @@ class Redis extends \lithium\core\StaticObject {
 	 */
 	public static function incrementHash($key, $values = array(), array $options = array()) {
 		$connection = static::connection();
-		$defaults = array('expiry' => static::$_config['expiry']);
+		$defaults = array('expiry' => static::$_config['expiry'], 'method' => false);
 		$options += $defaults;
 		$params = compact('key', 'values', 'options');
 		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
@@ -405,7 +406,11 @@ class Redis extends \lithium\core\StaticObject {
 			foreach ($params['values'] as $field => $val) {
 				switch (true) {
 					case is_numeric($val):
-						$method = (stristr($val, '.') === false) ? 'hIncrBy' : 'hIncrByFloat';
+						if($params['options']['method']) {
+							$method = $params['options']['method'];
+						} else {
+							$method = (stristr($val, '.') === false) ? 'hIncrBy' : 'hIncrByFloat';
+						}
 						$result[$field] = $connection->$method($key, $field, $val);
 						break;
 					default:
