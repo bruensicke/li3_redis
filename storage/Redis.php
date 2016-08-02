@@ -12,7 +12,6 @@ use lithium\core\Libraries;
 use lithium\core\Environment;
 use lithium\data\Connections;
 use lithium\util\Collection;
-use lithium\util\String;
 use lithium\util\Set;
 
 /**
@@ -976,10 +975,13 @@ class Redis extends \lithium\core\StaticObject {
 	 * @param string $key Key of numeric redis item to increment
 	 * @param integer $offset Offset to increment - defaults to 1.
 	 * @param array $options array with additional options, see Redis::getKey()
+	 *     - `expiry`: timestamp when the key should be expire, see Redis::_ttl()
 	 * @return integer|array new value of incremented item or an array of all values from redis
 	 * @filter
 	 */
 	public static function increment($key, $offset = 1, array $options = array()) {
+		$defaults = array('expiry' => false);
+		$options += $defaults;
 		$connection = static::connection();
 		$params = compact('key', 'offset', 'options');
 		return static::_filter(__METHOD__, $params, function($self, $params) use ($connection) {
